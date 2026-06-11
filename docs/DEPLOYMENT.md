@@ -14,6 +14,8 @@ The app is configured for a GitHub Pages project site with:
 base: '/backend-interview-os/',
 ```
 
+The Coding Dojo is still a static frontend feature. Python execution runs in the browser through Pyodide. The app dynamically loads the matching Pyodide runtime assets from jsDelivr at run time, so GitHub Pages only serves the React build and no backend is required.
+
 Create the repository with GitHub CLI:
 
 ```bash
@@ -52,6 +54,7 @@ Enable Pages:
 3. Build command: `npm run build`.
 4. Output directory: `dist`.
 5. For a root-domain Vercel deployment, set Vite `base` to `/` or use an environment-specific build configuration.
+6. The Pyodide runtime loads from jsDelivr unless you change `src/utils/pyodideRunner.ts` to self-host the assets.
 
 ## Cloudflare Pages
 
@@ -59,6 +62,7 @@ Enable Pages:
 2. Build command: `npm run build`.
 3. Build output directory: `dist`.
 4. For a root-domain Cloudflare deployment, set Vite `base` to `/` or use an environment-specific build configuration.
+5. The Pyodide runtime loads from jsDelivr unless you change `src/utils/pyodideRunner.ts` to self-host the assets.
 
 ## Rollback and redeploy
 

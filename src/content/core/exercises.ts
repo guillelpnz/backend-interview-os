@@ -38,6 +38,103 @@ def aggregate_by_department_month(rows):
     commonMistakes: ['Using a mutable dict as a default value.', 'Forgetting amount zero is valid.', 'Returning defaultdict objects.'],
     interviewerTips: ['State how invalid rows are handled.', 'Mention decimal precision if amounts represent money.', 'Add a simple test before optimizing.'],
     companyRelevance: ['abacum', 'fintech', 'saas'],
+    evaluationMode: 'function',
+    functionName: 'aggregate_by_department_month',
+    starterCode: `def aggregate_by_department_month(rows):
+    # Return totals grouped as:
+    # {"Department": {"YYYY-MM": total_amount}}
+    pass
+`,
+    solution: `from collections import defaultdict
+
+def aggregate_by_department_month(rows):
+    totals = defaultdict(lambda: defaultdict(float))
+    for row in rows:
+        department = row.get("department")
+        date = row.get("date")
+        amount = row.get("amount")
+        if not department or not date or amount is None:
+            continue
+        totals[department][date[:7]] += amount
+    return {department: dict(months) for department, months in totals.items()}
+`,
+    visibleTests: [
+      {
+        id: 'basic-grouping',
+        name: 'Groups two departments by month',
+        input: [
+          [
+            { department: 'Sales', date: '2026-01-12', amount: 100 },
+            { department: 'Sales', date: '2026-01-31', amount: 40 },
+            { department: 'Ops', date: '2026-02-01', amount: 50 },
+          ],
+        ],
+        expected: { Sales: { '2026-01': 140 }, Ops: { '2026-02': 50 } },
+        explanation: 'Amounts for the same department and month should be accumulated.',
+      },
+      {
+        id: 'skip-invalid',
+        name: 'Skips rows missing required fields',
+        input: [
+          [
+            { department: 'Sales', date: '2026-01-01', amount: 0 },
+            { department: '', date: '2026-01-01', amount: 999 },
+            { department: 'Ops', date: '2026-02-01' },
+          ],
+        ],
+        expected: { Sales: { '2026-01': 0 } },
+        explanation: 'Zero is a valid amount, but missing department/date/amount rows are ignored.',
+      },
+    ],
+    hiddenTests: [
+      {
+        id: 'multiple-months',
+        name: 'Handles multiple months for same department',
+        input: [
+          [
+            { department: 'Finance', date: '2026-03-02', amount: 10 },
+            { department: 'Finance', date: '2026-04-02', amount: 15 },
+            { department: 'Finance', date: '2026-03-15', amount: 5 },
+          ],
+        ],
+        expected: { Finance: { '2026-03': 15, '2026-04': 15 } },
+      },
+      {
+        id: 'empty-input',
+        name: 'Empty input returns empty dict',
+        input: [[]],
+        expected: {},
+      },
+    ],
+    mistakePatterns: [
+      {
+        id: 'no-dict',
+        label: 'No dictionary-based aggregation detected',
+        description: 'Aggregation problems are usually simplest with dict or defaultdict.',
+        severity: 'warning',
+        detect: 'static-not-contains',
+        pattern: 'dict|defaultdict|\\{',
+        feedback: 'Consider using a dictionary keyed by department and month so the solution stays O(n).',
+      },
+      {
+        id: 'missing-field-access',
+        label: 'Direct field indexing may raise KeyError',
+        description: 'Imported rows can be malformed.',
+        severity: 'warning',
+        detect: 'regex',
+        pattern: "row\\[[\"'](department|date|amount)[\"']\\]",
+        feedback: 'Use row.get(...) or explicit validation before indexing imported row fields.',
+      },
+      {
+        id: 'no-return',
+        label: 'No return statement',
+        description: 'The runner expects the target function to return the grouped dictionary.',
+        severity: 'error',
+        detect: 'static-not-contains',
+        pattern: 'return',
+        feedback: 'Return the final dictionary instead of printing it.',
+      },
+    ],
   },
   {
     id: 'actual-vs-forecast-variance',
@@ -73,6 +170,90 @@ def aggregate_by_department_month(rows):
     commonMistakes: ['Dividing by zero.', 'Only iterating actual departments.', 'Rounding too early before further calculations.'],
     interviewerTips: ['Ask whether percentage should use forecast or actual as baseline.', 'Call out money precision.', 'Explain missing values explicitly.'],
     companyRelevance: ['abacum', 'fintech', 'saas'],
+    evaluationMode: 'function',
+    functionName: 'compute_variance',
+    starterCode: `def compute_variance(actuals, forecasts):
+    # Return one entry per department across both dictionaries.
+    # variance_pct should be None when forecast is zero.
+    pass
+`,
+    solution: `def compute_variance(actuals, forecasts):
+    result = {}
+    for department in sorted(set(actuals) | set(forecasts)):
+        actual = actuals.get(department, 0)
+        forecast = forecasts.get(department, 0)
+        variance = actual - forecast
+        variance_pct = None if forecast == 0 else round((variance / forecast) * 100, 2)
+        result[department] = {
+            "actual": actual,
+            "forecast": forecast,
+            "variance": variance,
+            "variance_pct": variance_pct,
+        }
+    return result
+`,
+    visibleTests: [
+      {
+        id: 'basic-variance',
+        name: 'Computes actual, forecast and variance',
+        input: [{ Sales: 1200, Ops: 800 }, { Sales: 1000, Marketing: 500 }],
+        expected: {
+          Marketing: { actual: 0, forecast: 500, variance: -500, variance_pct: -100 },
+          Ops: { actual: 800, forecast: 0, variance: 800, variance_pct: null },
+          Sales: { actual: 1200, forecast: 1000, variance: 200, variance_pct: 20 },
+        },
+        explanation: 'Departments from both actuals and forecasts should be represented.',
+      },
+      {
+        id: 'zero-forecast',
+        name: 'Forecast zero gives no percentage',
+        input: [{ Support: 10 }, { Support: 0 }],
+        expected: { Support: { actual: 10, forecast: 0, variance: 10, variance_pct: null } },
+      },
+    ],
+    hiddenTests: [
+      {
+        id: 'negative-variance',
+        name: 'Handles under-performance',
+        input: [{ Sales: 75 }, { Sales: 100 }],
+        expected: { Sales: { actual: 75, forecast: 100, variance: -25, variance_pct: -25 } },
+      },
+      {
+        id: 'empty-inputs',
+        name: 'No departments returns empty dict',
+        input: [{}, {}],
+        expected: {},
+      },
+    ],
+    mistakePatterns: [
+      {
+        id: 'division-by-zero',
+        label: 'Division by zero risk',
+        description: 'Forecast can be zero for departments with no forecast.',
+        severity: 'error',
+        detect: 'static-not-contains',
+        pattern: 'forecast == 0|forecast != 0|if forecast',
+        feedback: 'Guard percentage variance when forecast is zero and return None for variance_pct.',
+      },
+      {
+        id: 'actuals-only',
+        label: 'May only iterate actual departments',
+        description: 'Departments that only exist in forecasts still need an output row.',
+        severity: 'warning',
+        detect: 'static-not-contains',
+        pattern: 'set\\(actuals\\).*set\\(forecasts\\)|set\\(forecasts\\).*set\\(actuals\\)|actuals\\.keys\\(\\).*forecasts\\.keys\\(\\)|forecasts\\.keys\\(\\).*actuals\\.keys\\(',
+        feedback: 'Iterate over the union of actual and forecast departments.',
+      },
+      {
+        id: 'no-return',
+        label: 'No return statement',
+        description: 'The function should return a dictionary of department results.',
+        severity: 'error',
+        detect: 'static-not-contains',
+        pattern: 'return',
+        feedback: 'Return the result dictionary instead of printing it.',
+      },
+    ],
   },
   {
     id: 'duplicated-financial-records',
@@ -107,6 +288,98 @@ def aggregate_by_department_month(rows):
     commonMistakes: ['Using only external_id as key.', 'Returning all copies instead of later duplicates.', 'Failing on missing fields.'],
     interviewerTips: ['Define canonical behavior first.', 'Discuss idempotency and unique constraints.', 'Mention source-specific namespaces.'],
     companyRelevance: ['abacum', 'fintech', 'integrations'],
+    evaluationMode: 'function',
+    functionName: 'find_duplicates',
+    starterCode: `def find_duplicates(rows):
+    # Return only later duplicate records.
+    # A duplicate is identified by (source, external_id).
+    pass
+`,
+    solution: `def find_duplicates(rows):
+    seen = set()
+    duplicates = []
+    for row in rows:
+        key = (row.get("source"), row.get("external_id"))
+        if None in key:
+            continue
+        if key in seen:
+            duplicates.append(row)
+        else:
+            seen.add(key)
+    return duplicates
+`,
+    visibleTests: [
+      {
+        id: 'source-namespaced',
+        name: 'Same external id from different sources is not duplicate',
+        input: [
+          [
+            { source: 'erp', external_id: 'A1', amount: 10 },
+            { source: 'crm', external_id: 'A1', amount: 10 },
+            { source: 'erp', external_id: 'A1', amount: 12 },
+          ],
+        ],
+        expected: [{ source: 'erp', external_id: 'A1', amount: 12 }],
+      },
+      {
+        id: 'no-duplicates',
+        name: 'No duplicates returns empty list',
+        input: [[{ source: 'erp', external_id: 'A1' }, { source: 'erp', external_id: 'B1' }]],
+        expected: [],
+      },
+    ],
+    hiddenTests: [
+      {
+        id: 'multiple-later-duplicates',
+        name: 'Returns every later duplicate in order',
+        input: [
+          [
+            { source: 'erp', external_id: 'A1', row: 1 },
+            { source: 'erp', external_id: 'A1', row: 2 },
+            { source: 'erp', external_id: 'A1', row: 3 },
+          ],
+        ],
+        expected: [
+          { source: 'erp', external_id: 'A1', row: 2 },
+          { source: 'erp', external_id: 'A1', row: 3 },
+        ],
+      },
+      {
+        id: 'skip-missing-key',
+        name: 'Ignores rows missing duplicate key parts',
+        input: [[{ source: 'erp' }, { external_id: 'A1' }, { source: 'erp', external_id: 'A1' }]],
+        expected: [],
+      },
+    ],
+    mistakePatterns: [
+      {
+        id: 'no-set',
+        label: 'No set usage detected',
+        description: 'A set of seen keys gives O(n) duplicate detection.',
+        severity: 'warning',
+        detect: 'static-not-contains',
+        pattern: 'set\\(',
+        feedback: 'Use a set to track seen (source, external_id) tuples.',
+      },
+      {
+        id: 'external-only',
+        label: 'Possibly ignores source in duplicate key',
+        description: 'External IDs are only unique within a source namespace.',
+        severity: 'warning',
+        detect: 'static-not-contains',
+        pattern: 'source',
+        feedback: 'Include both source and external_id in the duplicate key.',
+      },
+      {
+        id: 'no-return',
+        label: 'No return statement',
+        description: 'The function should return duplicate records.',
+        severity: 'error',
+        detect: 'static-not-contains',
+        pattern: 'return',
+        feedback: 'Return the duplicates list.',
+      },
+    ],
   },
   {
     id: 'merge-external-systems',
@@ -212,6 +485,92 @@ def aggregate_by_department_month(rows):
     commonMistakes: ['Checking role before tenant/department scope in a way that leaks access.', 'Hard-coding strings across the codebase.', 'Forgetting unknown roles should deny by default.'],
     interviewerTips: ['Say "deny by default".', 'Mention audit logs for financial data.', 'Discuss how this scales to RBAC/ABAC policies.'],
     companyRelevance: ['abacum', 'saas', 'security'],
+    evaluationMode: 'function',
+    functionName: 'can_access',
+    starterCode: `def can_access(user, resource, action):
+    # Admins can do everything.
+    # Managers can read/write resources in their department.
+    # Viewers can only read resources in their department.
+    # Unknown roles or actions should be denied.
+    pass
+`,
+    solution: `def can_access(user, resource, action):
+    role = user.get("role")
+    same_department = user.get("department") == resource.get("department")
+
+    if role == "admin":
+        return True
+    if not same_department:
+        return False
+    if role == "manager" and action in {"read", "write"}:
+        return True
+    if role == "viewer" and action == "read":
+        return True
+    return False
+`,
+    visibleTests: [
+      {
+        id: 'admin-all',
+        name: 'Admin can do anything',
+        input: [{ role: 'admin', department: 'Ops' }, { department: 'Sales' }, 'delete'],
+        expected: true,
+      },
+      {
+        id: 'viewer-cannot-write',
+        name: 'Viewer cannot write same-department resource',
+        input: [{ role: 'viewer', department: 'Sales' }, { department: 'Sales' }, 'write'],
+        expected: false,
+      },
+      {
+        id: 'manager-can-write-same-department',
+        name: 'Manager can write same-department resource',
+        input: [{ role: 'manager', department: 'Sales' }, { department: 'Sales' }, 'write'],
+        expected: true,
+      },
+    ],
+    hiddenTests: [
+      {
+        id: 'cross-department-denied',
+        name: 'Manager cannot read another department',
+        input: [{ role: 'manager', department: 'Ops' }, { department: 'Sales' }, 'read'],
+        expected: false,
+      },
+      {
+        id: 'unknown-role-denied',
+        name: 'Unknown role is denied',
+        input: [{ role: 'contractor', department: 'Sales' }, { department: 'Sales' }, 'read'],
+        expected: false,
+      },
+    ],
+    mistakePatterns: [
+      {
+        id: 'no-default-deny',
+        label: 'Default deny not obvious',
+        description: 'Permission systems should deny unknown roles/actions by default.',
+        severity: 'warning',
+        detect: 'static-not-contains',
+        pattern: 'return False|return false',
+        feedback: 'End with a deny-by-default return False path.',
+      },
+      {
+        id: 'department-scope-missing',
+        label: 'Department scoping may be missing',
+        description: 'Non-admin access must be scoped to the same department.',
+        severity: 'error',
+        detect: 'static-not-contains',
+        pattern: 'department',
+        feedback: 'Check user and resource department before granting manager/viewer access.',
+      },
+      {
+        id: 'hardcoded-true',
+        label: 'Potential over-granting',
+        description: 'Permission code should be explicit and conservative.',
+        severity: 'warning',
+        detect: 'regex',
+        pattern: 'return\\s+True\\s*$',
+        feedback: 'Make sure every True path is guarded by role and scope checks.',
+      },
+    ],
   },
   {
     id: 'vendor-quarter-spend',
@@ -514,6 +873,111 @@ class RateLimiter:
     commonMistakes: ['Treating missing keys as accepted.', 'Returning duplicate events when keys are requested.', 'Not preserving accepted order.'],
     interviewerTips: ['Mention database unique constraints.', 'Discuss idempotency across retries.', 'Connect to external integrations.'],
     companyRelevance: ['abacum', 'integrations', 'saas'],
+    evaluationMode: 'function',
+    functionName: 'dedupe_by_idempotency_key',
+    starterCode: `def dedupe_by_idempotency_key(events):
+    # Return:
+    # {
+    #   "accepted": first event for each idempotency key,
+    #   "duplicates": duplicate keys in input order,
+    #   "rejected": events missing an idempotency key,
+    # }
+    pass
+`,
+    solution: `def dedupe_by_idempotency_key(events):
+    seen = set()
+    accepted = []
+    duplicates = []
+    rejected = []
+
+    for event in events:
+        key = event.get("idempotency_key")
+        if not key:
+            rejected.append(event)
+        elif key in seen:
+            duplicates.append(key)
+        else:
+            seen.add(key)
+            accepted.append(event)
+
+    return {"accepted": accepted, "duplicates": duplicates, "rejected": rejected}
+`,
+    visibleTests: [
+      {
+        id: 'basic-idempotency',
+        name: 'Accepts first event and reports duplicate key',
+        input: [[{ idempotency_key: 'A' }, { idempotency_key: 'A' }, { amount: 10 }]],
+        expected: {
+          accepted: [{ idempotency_key: 'A' }],
+          duplicates: ['A'],
+          rejected: [{ amount: 10 }],
+        },
+      },
+      {
+        id: 'preserve-order',
+        name: 'Preserves accepted order',
+        input: [[{ idempotency_key: 'A', amount: 10 }, { idempotency_key: 'B', amount: 20 }]],
+        expected: {
+          accepted: [
+            { idempotency_key: 'A', amount: 10 },
+            { idempotency_key: 'B', amount: 20 },
+          ],
+          duplicates: [],
+          rejected: [],
+        },
+      },
+    ],
+    hiddenTests: [
+      {
+        id: 'multiple-duplicates',
+        name: 'Reports every duplicate occurrence',
+        input: [[{ idempotency_key: 'A' }, { idempotency_key: 'B' }, { idempotency_key: 'A' }, { idempotency_key: 'A' }]],
+        expected: {
+          accepted: [{ idempotency_key: 'A' }, { idempotency_key: 'B' }],
+          duplicates: ['A', 'A'],
+          rejected: [],
+        },
+      },
+      {
+        id: 'empty-key-rejected',
+        name: 'Empty key is rejected',
+        input: [[{ idempotency_key: '' }, { idempotency_key: 'OK' }]],
+        expected: {
+          accepted: [{ idempotency_key: 'OK' }],
+          duplicates: [],
+          rejected: [{ idempotency_key: '' }],
+        },
+      },
+    ],
+    mistakePatterns: [
+      {
+        id: 'no-seen-set',
+        label: 'No seen-key set detected',
+        description: 'Idempotency requires remembering keys already processed.',
+        severity: 'warning',
+        detect: 'static-not-contains',
+        pattern: 'set\\(',
+        feedback: 'Use a set of seen idempotency keys to keep duplicate checks O(1).',
+      },
+      {
+        id: 'missing-rejected',
+        label: 'Missing rejected bucket',
+        description: 'Events without idempotency_key should not be accepted.',
+        severity: 'error',
+        detect: 'static-not-contains',
+        pattern: 'rejected',
+        feedback: 'Keep a rejected list for events missing an idempotency key.',
+      },
+      {
+        id: 'mutates-input',
+        label: 'Possible input mutation',
+        description: 'Interviewers usually expect transformation without mutating input rows.',
+        severity: 'warning',
+        detect: 'regex',
+        pattern: '\\.pop\\(|\\.clear\\(|del\\s+',
+        feedback: 'Avoid mutating the input events while deduplicating.',
+      },
+    ],
   },
   {
     id: 'dependency-recalculation-order',

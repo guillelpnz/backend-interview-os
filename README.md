@@ -4,6 +4,20 @@ Static React + TypeScript + Vite application for backend interview preparation. 
 
 The first real profile is Abacum, with preparation content for Python live coding, Django, FastAPI, SQL/PostgreSQL, system design, behavioral interviews, CV/project defense, flashcards, cheat sheets and mock interview mode.
 
+## Coding Dojo
+
+The Coding Dojo section adds an in-browser Python practice environment for selected live coding exercises.
+
+- Monaco Editor provides Python syntax highlighting.
+- Pyodide runs Python locally in the browser.
+- Visible and hidden tests are deterministic local test cases.
+- User solutions and run progress are saved in browser `localStorage`.
+- Local heuristic feedback flags common mistakes such as missing return values, hardcoded sample output or risky field access.
+
+Python execution happens in the browser. Do not paste secrets or run untrusted code in the dojo.
+
+See [docs/CODING_DOJO.md](docs/CODING_DOJO.md) for implementation details and instructions for adding new interactive exercises.
+
 ## Setup
 
 ```bash
@@ -109,6 +123,8 @@ Keep `id` stable once users have progress saved in localStorage.
 All interview content is stored locally in TypeScript files. There is no backend, authentication or external database.
 
 Progress, selected company, flashcard completion and dark mode are stored in browser `localStorage`.
+
+Coding Dojo solutions, attempts, visible-test status, all-test status, last run date and weak tags are also stored in browser `localStorage`.
 
 ## Deployment
 

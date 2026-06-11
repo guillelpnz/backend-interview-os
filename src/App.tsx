@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Checklist } from './components/Checklist'
+import { CodingDojo } from './components/CodingDojo'
 import { CompanyPage } from './components/CompanyPage'
 import { ExerciseCard } from './components/ExerciseCard'
 import { Flashcard } from './components/Flashcard'
@@ -36,7 +37,7 @@ import { flashcardGroups, flashcards } from './content/core/flashcards'
 import { globalStudyPlan } from './content/core/studyPlan'
 import { systemDesignScenarios } from './content/core/systemDesign'
 import { companies } from './content/companies'
-import type { DeepDiveTopic } from './types/content'
+import type { CodingDojoExerciseProgress, CodingDojoProgressMap, DeepDiveTopic } from './types/content'
 import { useLocalStorage } from './utils/storage'
 import { collectTrackableIds, countCompleted, toggleCompletion, type CompletionMap } from './utils/progress'
 
@@ -45,6 +46,7 @@ const navItems: NavItem[] = [
   { id: 'company', label: 'Company', icon: Building2 },
   { id: 'study-plan', label: 'Study Plan', icon: CheckSquare },
   { id: 'live-coding', label: 'Python Coding', icon: Code2 },
+  { id: 'coding-dojo', label: 'Coding Dojo', icon: Code2 },
   { id: 'django', label: 'Django', icon: Layers3 },
   { id: 'fastapi', label: 'FastAPI', icon: Sparkles },
   { id: 'sql', label: 'SQL/Postgres', icon: Database },
@@ -107,17 +109,53 @@ function DeepDiveGrid({ topics }: { topics: DeepDiveTopic[] }) {
   )
 }
 
+function rankDojoResult(result?: CodingDojoExerciseProgress['bestResult']) {
+  if (result === 'all-passed') return 4
+  if (result === 'visible-passed') return 3
+  if (result === 'failed') return 2
+  if (result === 'error') return 1
+  return 0
+}
+
+function betterDojoResult(
+  current?: CodingDojoExerciseProgress['bestResult'],
+  next?: CodingDojoExerciseProgress['bestResult'],
+) {
+  return rankDojoResult(next) > rankDojoResult(current) ? next : current
+}
+
 function App() {
   const [activeSection, setActiveSection] = useState('dashboard')
   const [selectedCompanyId, setSelectedCompanyId] = useLocalStorage('prep-hub:selected-company', companies[0].id)
   const [darkMode, setDarkMode] = useLocalStorage('prep-hub:dark-mode', false)
   const [completions, setCompletions] = useLocalStorage<CompletionMap>('prep-hub:completions', {})
+  const [dojoProgress, setDojoProgress] = useLocalStorage<CodingDojoProgressMap>('prep-hub:coding-dojo-progress', {})
   const [search, setSearch] = useState('')
   const [flashcardGroup, setFlashcardGroup] = useState('All')
 
   const selectedCompany = companies.find((company) => company.id === selectedCompanyId) ?? companies[0]
+  const interactiveExercises = useMemo(
+    () => liveCodingExercises.filter((exercise) => exercise.evaluationMode === 'function' && exercise.functionName && exercise.starterCode),
+    [],
+  )
   const trackableIds = useMemo(() => collectTrackableIds(companies, liveCodingExercises, flashcards, globalStudyPlan), [])
   const completedCount = countCompleted(trackableIds, completions)
+  const dojoAttempted = interactiveExercises.filter((exercise) => dojoProgress[exercise.id]?.attempted).length
+  const dojoAllPassed = interactiveExercises.filter((exercise) => dojoProgress[exercise.id]?.allTestsPassed).length
+  const dojoWeakTags = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const exercise of interactiveExercises) {
+      const progress = dojoProgress[exercise.id]
+      if (!progress?.attempted || progress.allTestsPassed) continue
+      for (const tag of progress.failedTags.length ? progress.failedTags : exercise.tags) {
+        counts.set(tag, (counts.get(tag) ?? 0) + 1)
+      }
+    }
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([tag]) => tag)
+  }, [dojoProgress, interactiveExercises])
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode)
@@ -125,6 +163,25 @@ function App() {
 
   const onToggleCompletion = (id: string) => {
     setCompletions((current) => toggleCompletion(current, id))
+  }
+
+  const updateDojoProgress = (exerciseId: string, nextProgress: CodingDojoExerciseProgress) => {
+    setDojoProgress((current) => {
+      const previous = current[exerciseId]
+      const bestResult = betterDojoResult(previous?.bestResult, nextProgress.bestResult)
+      return {
+        ...current,
+        [exerciseId]: {
+          attempted: true,
+          visibleTestsPassed: Boolean(previous?.visibleTestsPassed || nextProgress.visibleTestsPassed),
+          allTestsPassed: Boolean(previous?.allTestsPassed || nextProgress.allTestsPassed),
+          lastRunDate: nextProgress.lastRunDate,
+          bestResult,
+          runCount: (previous?.runCount ?? 0) + 1,
+          failedTags: nextProgress.failedTags.length ? nextProgress.failedTags : (previous?.failedTags ?? []),
+        },
+      }
+    })
   }
 
   const filteredExercises = liveCodingExercises.filter((exercise) => includesQuery([exercise.title, exercise.prompt, exercise.tags, exercise.companyRelevance], search))
@@ -164,7 +221,7 @@ function App() {
         </div>
       </SectionCard>
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid gap-5 lg:grid-cols-4">
         <SectionCard title="Companies" description="Each company is rendered from a TypeScript profile.">
           <div className="space-y-3">
             {companies.map((company) => (
@@ -190,6 +247,29 @@ function App() {
 
         <SectionCard title="Daily checklist" description="Small list for today, saved locally.">
           <Checklist items={dailyChecklist} completions={completions} onToggle={onToggleCompletion} />
+        </SectionCard>
+
+        <SectionCard title="Coding Dojo progress" description="Interactive Python attempts saved locally.">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-md bg-slate-50 p-3 dark:bg-slate-950/50">
+              <p className="text-2xl font-semibold text-slate-950 dark:text-white">{dojoAttempted}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Attempted</p>
+            </div>
+            <div className="rounded-md bg-slate-50 p-3 dark:bg-slate-950/50">
+              <p className="text-2xl font-semibold text-slate-950 dark:text-white">{dojoAllPassed}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">All passed</p>
+            </div>
+          </div>
+          <div className="mt-3">
+            <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Weak tags</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {(dojoWeakTags.length ? dojoWeakTags : ['No failed attempts yet']).map((tag) => (
+                <span key={tag} className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
         </SectionCard>
       </div>
 
@@ -487,6 +567,17 @@ export const newCompany: CompanyProfile = {
         return renderStudyPlan()
       case 'live-coding':
         return renderLiveCoding()
+      case 'coding-dojo':
+        return (
+          <CodingDojo
+            exercises={liveCodingExercises}
+            companies={companies}
+            selectedCompanyId={selectedCompany.id}
+            darkMode={darkMode}
+            progress={dojoProgress}
+            onProgressUpdate={updateDojoProgress}
+          />
+        )
       case 'django':
         return <DeepDiveGrid topics={djangoTopics} />
       case 'fastapi':

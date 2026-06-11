@@ -10,7 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
     "lucide-react": "^1.17.0",
+    "pyodide": "^314.0.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
   },
@@ -30,5 +32,8 @@
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
     "vite": "^7.3.5"
+  },
+  "overrides": {
+    "dompurify": "3.4.9"
   }
 }

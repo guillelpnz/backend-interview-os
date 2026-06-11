@@ -1,5 +1,23 @@
 export type Difficulty = 'Easy' | 'Medium' | 'Hard'
 
+export type PythonTestCase = {
+  id: string
+  name: string
+  input: unknown[]
+  expected: unknown
+  explanation?: string
+}
+
+export type MistakePattern = {
+  id: string
+  label: string
+  description: string
+  severity: 'info' | 'warning' | 'error'
+  detect: 'static-contains' | 'static-not-contains' | 'regex'
+  pattern: string
+  feedback: string
+}
+
 export type LiveCodingExercise = {
   id: string
   title: string
@@ -15,6 +33,13 @@ export type LiveCodingExercise = {
   commonMistakes: string[]
   interviewerTips: string[]
   companyRelevance: string[]
+  starterCode?: string
+  visibleTests?: PythonTestCase[]
+  hiddenTests?: PythonTestCase[]
+  solution?: string
+  evaluationMode?: 'function'
+  functionName?: string
+  mistakePatterns?: MistakePattern[]
 }
 
 export type DeepDiveTopic = {
@@ -98,3 +123,15 @@ export type StudyPlanItem = {
   tasks: string[]
   output: string
 }
+
+export type CodingDojoExerciseProgress = {
+  attempted: boolean
+  visibleTestsPassed: boolean
+  allTestsPassed: boolean
+  lastRunDate?: string
+  bestResult?: 'failed' | 'visible-passed' | 'all-passed' | 'error'
+  runCount: number
+  failedTags: string[]
+}
+
+export type CodingDojoProgressMap = Record<string, CodingDojoExerciseProgress>
