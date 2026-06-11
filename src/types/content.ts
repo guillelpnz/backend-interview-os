@@ -1,0 +1,100 @@
+export type Difficulty = 'Easy' | 'Medium' | 'Hard'
+
+export type LiveCodingExercise = {
+  id: string
+  title: string
+  difficulty: Difficulty
+  tags: string[]
+  prompt: string
+  inputExample: string
+  expectedOutput: string
+  hints: string[]
+  referenceSolution: string
+  pytestTests: string
+  complexity: string
+  commonMistakes: string[]
+  interviewerTips: string[]
+  companyRelevance: string[]
+}
+
+export type DeepDiveTopic = {
+  id: string
+  title: string
+  group: 'Django' | 'FastAPI' | 'SQL'
+  explanation: string
+  interviewAnswer: string
+  miniExample: string
+  redFlags: string[]
+  relevance: string
+  tags: string[]
+}
+
+export type SystemDesignScenario = {
+  id: string
+  title: string
+  tags: string[]
+  requirements: string[]
+  clarifyingQuestions: string[]
+  entities: string[]
+  apiDesign: string[]
+  architecture: string[]
+  consistencyConcerns: string[]
+  scalingConcerns: string[]
+  failureModes: string[]
+  observability: string[]
+  tradeOffs: string[]
+  weakAnswer: string
+  strongAnswer: string
+  finalSummaryAnswer: string
+}
+
+export type BehavioralFramework = {
+  id: string
+  question: string
+  themes: string[]
+  situation: string
+  task: string
+  action: string[]
+  result: string
+  adaptByCompany: string
+}
+
+export type CvDefenseCard = {
+  id: string
+  title: string
+  likelyChallenge: string
+  strongAnswer: string
+  technicalDetails: string[]
+  metricsToClarify: string[]
+  risksIfOverstated: string[]
+  followUpQuestions: string[]
+  practicePrompt: string
+}
+
+export type Flashcard = {
+  id: string
+  group: string
+  question: string
+  answer: string
+  tags: string[]
+}
+
+export type CheatSheet = {
+  id: string
+  title: string
+  tags: string[]
+  sections: {
+    title: string
+    points: string[]
+  }[]
+}
+
+export type StudyPlanItem = {
+  id: string
+  day: number
+  title: string
+  module: string
+  companyBias?: string
+  tasks: string[]
+  output: string
+}
