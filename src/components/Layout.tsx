@@ -29,6 +29,7 @@ export function Layout({
 }: LayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const activeItem = navItems.find((item) => item.id === activeSection)
+  const wideContent = activeSection === 'coding-dojo'
 
   const navigate = (sectionId: string) => {
     onNavigate(sectionId)
@@ -98,7 +99,7 @@ export function Layout({
             )}
           </header>
 
-          <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          <main className={`mx-auto px-4 py-6 sm:px-6 lg:px-8 ${wideContent ? 'max-w-[1800px]' : 'max-w-7xl'}`}>
             <div className="mb-5 hidden items-center justify-between gap-4 lg:flex">
               <div>
                 <p className="text-sm font-medium text-teal-700 dark:text-teal-300">Backend Interview Prep Hub</p>

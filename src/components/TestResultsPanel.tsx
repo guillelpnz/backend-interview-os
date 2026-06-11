@@ -11,7 +11,12 @@ function ResultRow({ result }: { result: PythonExerciseTestResult }) {
     <div className="rounded-md border border-slate-200 p-3 dark:border-slate-700">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-slate-950 dark:text-slate-50">{result.name}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold text-slate-950 dark:text-slate-50">{result.name}</p>
+            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold uppercase text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+              {result.hidden ? 'Hidden' : 'Visible'}
+            </span>
+          </div>
           {result.explanation && <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{result.explanation}</p>}
         </div>
         <span
@@ -27,8 +32,14 @@ function ResultRow({ result }: { result: PythonExerciseTestResult }) {
       </div>
       {!result.passed && (
         <div className="mt-3 grid gap-2 text-xs md:grid-cols-2">
-          <pre className="overflow-auto rounded bg-slate-50 p-2 text-slate-700 dark:bg-slate-950/50 dark:text-slate-200">{JSON.stringify(result.expected, null, 2)}</pre>
-          <pre className="overflow-auto rounded bg-slate-50 p-2 text-slate-700 dark:bg-slate-950/50 dark:text-slate-200">{result.error ?? JSON.stringify(result.actual, null, 2)}</pre>
+          <div>
+            <p className="mb-1 font-semibold uppercase text-slate-500 dark:text-slate-400">Expected</p>
+            <pre className="max-h-48 overflow-auto rounded bg-slate-50 p-2 text-slate-700 dark:bg-slate-950/50 dark:text-slate-200">{JSON.stringify(result.expected, null, 2)}</pre>
+          </div>
+          <div>
+            <p className="mb-1 font-semibold uppercase text-slate-500 dark:text-slate-400">{result.error ? 'Error' : 'Actual'}</p>
+            <pre className="max-h-48 overflow-auto rounded bg-slate-50 p-2 text-slate-700 dark:bg-slate-950/50 dark:text-slate-200">{result.error ?? JSON.stringify(result.actual, null, 2)}</pre>
+          </div>
         </div>
       )}
     </div>
@@ -50,7 +61,7 @@ export function TestResultsPanel({ result, loading = false }: TestResultsPanelPr
   if (!result) {
     return (
       <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
-        Run visible tests to get feedback. Run all tests when your visible cases pass.
+        Run visible tests first. The panel will show each visible case, what your function returned, and what the expected return value was. Run all tests when the visible cases pass.
       </div>
     )
   }

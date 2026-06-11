@@ -8,6 +8,43 @@ export const liveCodingExercises: LiveCodingExercise[] = [
     tags: ['python', 'dict', 'grouping', 'finance'],
     prompt:
       'Given transactions with department, ISO date and amount, return total spend per department per YYYY-MM month. Ignore rows with missing department, date or amount.',
+    brief:
+      'Write a pure function that groups imported transaction rows by department and calendar month, then returns the summed amount for each group.',
+    requirements: [
+      'Implement aggregate_by_department_month(rows).',
+      'Group by department first, then by the first 7 characters of the ISO date: YYYY-MM.',
+      'Add amounts for rows that land in the same department and month.',
+      'Return a normal dict of dicts, not a defaultdict.',
+    ],
+    inputContract: [
+      'rows is a list of dictionaries.',
+      'Each valid row has department: str, date: str in YYYY-MM-DD format, and amount: number.',
+      'Rows can be missing keys or contain empty department/date values.',
+    ],
+    outputContract: [
+      'Return {"Department": {"YYYY-MM": total_amount}}.',
+      'Do not print the answer; the runner compares the function return value.',
+      'Department and month order does not matter for dictionary equality.',
+    ],
+    edgeCases: [
+      'amount = 0 is valid and must be included.',
+      'Skip rows with missing/empty department, missing/empty date, or missing amount.',
+      'Empty input should return {}.',
+    ],
+    examples: [
+      {
+        label: 'Finance import',
+        input: `rows = [
+  {"department": "Sales", "date": "2026-01-12", "amount": 100},
+  {"department": "Sales", "date": "2026-01-31", "amount": 40},
+  {"department": "Ops", "date": "2026-02-01", "amount": 50}
+]`,
+        expected: `{
+  "Sales": {"2026-01": 140},
+  "Ops": {"2026-02": 50}
+}`,
+      },
+    ],
     inputExample: `[{"department": "Sales", "date": "2026-01-12", "amount": 100}, {"department": "Sales", "date": "2026-01-31", "amount": 40}, {"department": "Ops", "date": "2026-02-01", "amount": 50}]`,
     expectedOutput: `{"Sales": {"2026-01": 140}, "Ops": {"2026-02": 50}}`,
     hints: ['Extract the month with date[:7].', 'defaultdict can keep the code compact.', 'Decide how to treat malformed rows before coding.'],
@@ -41,8 +78,9 @@ def aggregate_by_department_month(rows):
     evaluationMode: 'function',
     functionName: 'aggregate_by_department_month',
     starterCode: `def aggregate_by_department_month(rows):
-    # Return totals grouped as:
-    # {"Department": {"YYYY-MM": total_amount}}
+    # rows: list of dicts with department, date, amount
+    # return: {"Department": {"YYYY-MM": total_amount}}
+    # skip invalid rows, but keep amount=0
     pass
 `,
     solution: `from collections import defaultdict
@@ -143,6 +181,41 @@ def aggregate_by_department_month(rows):
     tags: ['python', 'finance', 'math'],
     prompt:
       'Given actuals and forecasts keyed by department, return actual, forecast, absolute variance and percentage variance. Missing values should be treated as 0.',
+    brief:
+      'Write a pure function that reconciles actual spend against forecast spend for every department present in either input dictionary.',
+    requirements: [
+      'Implement compute_variance(actuals, forecasts).',
+      'Include departments that appear only in actuals, only in forecasts, or in both.',
+      'For each department, calculate variance = actual - forecast.',
+      'Calculate variance_pct = round((variance / forecast) * 100, 2), unless forecast is 0.',
+    ],
+    inputContract: [
+      'actuals is a dictionary keyed by department name with numeric actual values.',
+      'forecasts is a dictionary keyed by department name with numeric forecast values.',
+      'A missing department on either side should be treated as value 0.',
+    ],
+    outputContract: [
+      'Return one dictionary entry per department.',
+      'Each value must contain actual, forecast, variance, and variance_pct.',
+      'variance_pct must be None when forecast is 0.',
+    ],
+    edgeCases: [
+      'Do not divide by zero.',
+      'Departments that only exist in forecasts still need output rows.',
+      'Negative variance is valid when actual is below forecast.',
+    ],
+    examples: [
+      {
+        label: 'Actuals vs forecast',
+        input: `actuals = {"Sales": 1200, "Ops": 800}
+forecasts = {"Sales": 1000, "Marketing": 500}`,
+        expected: `{
+  "Marketing": {"actual": 0, "forecast": 500, "variance": -500, "variance_pct": -100.0},
+  "Ops": {"actual": 800, "forecast": 0, "variance": 800, "variance_pct": None},
+  "Sales": {"actual": 1200, "forecast": 1000, "variance": 200, "variance_pct": 20.0}
+}`,
+      },
+    ],
     inputExample: `actuals={"Sales": 1200, "Ops": 800}; forecasts={"Sales": 1000, "Marketing": 500}`,
     expectedOutput: `{"Sales": {"actual": 1200, "forecast": 1000, "variance": 200, "variance_pct": 20.0}, "Ops": {"actual": 800, "forecast": 0, "variance": 800, "variance_pct": None}, "Marketing": {"actual": 0, "forecast": 500, "variance": -500, "variance_pct": -100.0}}`,
     hints: ['Use the union of keys.', 'Percentage variance is undefined when forecast is zero.', 'Sort keys only if deterministic output matters.'],
@@ -173,8 +246,9 @@ def aggregate_by_department_month(rows):
     evaluationMode: 'function',
     functionName: 'compute_variance',
     starterCode: `def compute_variance(actuals, forecasts):
-    # Return one entry per department across both dictionaries.
-    # variance_pct should be None when forecast is zero.
+    # actuals/forecasts: dict[str, number]
+    # return one entry for every department in either dict
+    # variance_pct is None when forecast is 0
     pass
 `,
     solution: `def compute_variance(actuals, forecasts):
@@ -262,6 +336,42 @@ def aggregate_by_department_month(rows):
     tags: ['python', 'deduplication', 'sets'],
     prompt:
       'Return duplicate records based on external_id and source. The first occurrence is canonical; later occurrences should be returned in original order.',
+    brief:
+      'Write a pure function that finds later duplicate imported records while keeping the first record for each source/external_id pair as canonical.',
+    requirements: [
+      'Implement find_duplicates(rows).',
+      'Use the pair (source, external_id) as the uniqueness key.',
+      'Treat the first occurrence of each key as the canonical record.',
+      'Return only the later duplicate rows, preserving their original input order.',
+    ],
+    inputContract: [
+      'rows is a list of dictionaries from external systems.',
+      'A valid duplicate key needs both source and external_id.',
+      'Different sources may reuse the same external_id without being duplicates.',
+    ],
+    outputContract: [
+      'Return a list of row dictionaries.',
+      'Do not return the first canonical row for a key.',
+      'Return the original duplicate row object/value, including any extra fields.',
+    ],
+    edgeCases: [
+      'Rows missing source or external_id should be ignored.',
+      'If one key appears three times, return the second and third rows.',
+      'No duplicates should return an empty list.',
+    ],
+    examples: [
+      {
+        label: 'Namespaced external ids',
+        input: `rows = [
+  {"source": "erp", "external_id": "A1", "amount": 10},
+  {"source": "crm", "external_id": "A1", "amount": 10},
+  {"source": "erp", "external_id": "A1", "amount": 12}
+]`,
+        expected: `[
+  {"source": "erp", "external_id": "A1", "amount": 12}
+]`,
+      },
+    ],
     inputExample: `[{"source": "erp", "external_id": "A1"}, {"source": "crm", "external_id": "A1"}, {"source": "erp", "external_id": "A1"}]`,
     expectedOutput: `[{"source": "erp", "external_id": "A1"}]`,
     hints: ['The unique key is a tuple.', 'Do not treat same external_id from different sources as duplicate.', 'Preserve input order.'],
@@ -291,8 +401,9 @@ def aggregate_by_department_month(rows):
     evaluationMode: 'function',
     functionName: 'find_duplicates',
     starterCode: `def find_duplicates(rows):
-    # Return only later duplicate records.
-    # A duplicate is identified by (source, external_id).
+    # rows: list of dicts from external systems
+    # duplicate key: (source, external_id)
+    # return only later duplicate rows, in input order
     pass
 `,
     solution: `def find_duplicates(rows):
@@ -459,6 +570,39 @@ def aggregate_by_department_month(rows):
     tags: ['python', 'permissions', 'rbac'],
     prompt:
       'Implement can_access(user, resource, action). Admins can do everything. Managers can read/write resources in their department. Viewers can only read resources in their department.',
+    brief:
+      'Write a conservative permission function for department-scoped resources. The safest default is to deny unless a rule explicitly grants access.',
+    requirements: [
+      'Implement can_access(user, resource, action).',
+      'Admins can perform any action on any resource.',
+      'Managers can read and write resources only in their own department.',
+      'Viewers can read resources only in their own department.',
+      'Unknown roles and unknown actions must be denied.',
+    ],
+    inputContract: [
+      'user is a dictionary with role and department.',
+      'resource is a dictionary with department.',
+      'action is a string such as read, write, or delete.',
+    ],
+    outputContract: [
+      'Return True when access is allowed.',
+      'Return False when access is denied.',
+      'Do not raise for unknown roles/actions; deny by default.',
+    ],
+    edgeCases: [
+      'A manager from Ops cannot read a Sales resource.',
+      'A viewer cannot write, even within their department.',
+      'Admin is the only role that bypasses department scope.',
+    ],
+    examples: [
+      {
+        label: 'Viewer write attempt',
+        input: `user = {"role": "viewer", "department": "Sales"}
+resource = {"department": "Sales"}
+action = "write"`,
+        expected: `False`,
+      },
+    ],
     inputExample: `user={"role": "viewer", "department": "Sales"}; resource={"department": "Sales"}; action="write"`,
     expectedOutput: `False`,
     hints: ['Write explicit branches.', 'Keep action names normalized.', 'Avoid accidentally granting cross-department access.'],
@@ -488,10 +632,10 @@ def aggregate_by_department_month(rows):
     evaluationMode: 'function',
     functionName: 'can_access',
     starterCode: `def can_access(user, resource, action):
-    # Admins can do everything.
-    # Managers can read/write resources in their department.
-    # Viewers can only read resources in their department.
-    # Unknown roles or actions should be denied.
+    # return True only when a rule explicitly grants access
+    # admin: any action, any department
+    # manager: read/write in same department
+    # viewer: read in same department
     pass
 `,
     solution: `def can_access(user, resource, action):
@@ -842,6 +986,46 @@ class RateLimiter:
     tags: ['python', 'idempotency', 'integrations'],
     prompt:
       'Process payment-like events once per idempotency_key. Return accepted events and duplicate keys. Events missing keys should be rejected.',
+    brief:
+      'Write a pure function that simulates idempotent event processing: accept the first event for each key, report later retries, and reject events without a usable key.',
+    requirements: [
+      'Implement dedupe_by_idempotency_key(events).',
+      'Accept the first event for each non-empty idempotency_key.',
+      'For later events with an already-seen key, append the key to duplicates.',
+      'Events with missing or empty idempotency_key belong in rejected.',
+      'Preserve input order inside accepted, duplicates, and rejected.',
+    ],
+    inputContract: [
+      'events is a list of dictionaries.',
+      'A valid event has a non-empty idempotency_key.',
+      'Events may contain extra fields such as amount, source, or payload.',
+    ],
+    outputContract: [
+      'Return {"accepted": [...], "duplicates": [...], "rejected": [...]}.',
+      'accepted contains event dictionaries, not keys.',
+      'duplicates contains duplicate key strings, not event dictionaries.',
+      'rejected contains the original invalid event dictionaries.',
+    ],
+    edgeCases: [
+      'The same key can appear more than twice; report every duplicate occurrence.',
+      'An empty string key is rejected, not accepted.',
+      'Do not mutate the input events.',
+    ],
+    examples: [
+      {
+        label: 'Retry stream',
+        input: `events = [
+  {"idempotency_key": "A"},
+  {"idempotency_key": "A"},
+  {"amount": 10}
+]`,
+        expected: `{
+  "accepted": [{"idempotency_key": "A"}],
+  "duplicates": ["A"],
+  "rejected": [{"amount": 10}]
+}`,
+      },
+    ],
     inputExample: `[{"idempotency_key":"A"}, {"idempotency_key":"A"}, {"amount":10}]`,
     expectedOutput: `{"accepted": [{"idempotency_key": "A"}], "duplicates": ["A"], "rejected": [{"amount": 10}]}`,
     hints: ['Use a seen set.', 'Separate duplicate from rejected.', 'Preserve accepted input order.'],
@@ -876,12 +1060,10 @@ class RateLimiter:
     evaluationMode: 'function',
     functionName: 'dedupe_by_idempotency_key',
     starterCode: `def dedupe_by_idempotency_key(events):
-    # Return:
-    # {
-    #   "accepted": first event for each idempotency key,
-    #   "duplicates": duplicate keys in input order,
-    #   "rejected": events missing an idempotency key,
-    # }
+    # return {"accepted": [...], "duplicates": [...], "rejected": [...]}
+    # accepted: first event for each non-empty key
+    # duplicates: duplicate keys, not duplicate events
+    # rejected: events missing a non-empty key
     pass
 `,
     solution: `def dedupe_by_idempotency_key(events):

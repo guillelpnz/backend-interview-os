@@ -13,6 +13,7 @@ The Coding Dojo section adds an in-browser Python practice environment for selec
 - Visible and hidden tests are deterministic local test cases.
 - User solutions and run progress are saved in browser `localStorage`.
 - Local heuristic feedback flags common mistakes such as missing return values, hardcoded sample output or risky field access.
+- Focus editor mode gives the coding surface more room while keeping the task contract available.
 
 Python execution happens in the browser. Do not paste secrets or run untrusted code in the dojo.
 

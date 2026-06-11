@@ -32,6 +32,27 @@ Add the interactive fields to an exercise in `src/content/core/exercises.ts`.
 Required fields:
 
 ```ts
+brief: 'One plain-language sentence explaining the job of the function.',
+requirements: [
+  'Implement your_function_name(...).',
+  'List the exact rules the solution must follow.',
+],
+inputContract: [
+  'Describe the argument shapes and allowed values.',
+],
+outputContract: [
+  'Describe the exact return shape.',
+],
+edgeCases: [
+  'Name the edge cases the candidate should handle.',
+],
+examples: [
+  {
+    label: 'Example name',
+    input: 'items = [1, 2, 3]',
+    expected: '6',
+  },
+],
 evaluationMode: 'function',
 functionName: 'your_function_name',
 starterCode: `def your_function_name(...):

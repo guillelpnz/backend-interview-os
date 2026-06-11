@@ -8,6 +8,12 @@ export type PythonTestCase = {
   explanation?: string
 }
 
+export type CodingExample = {
+  label: string
+  input: string
+  expected: string
+}
+
 export type MistakePattern = {
   id: string
   label: string
@@ -26,6 +32,12 @@ export type LiveCodingExercise = {
   prompt: string
   inputExample: string
   expectedOutput: string
+  brief?: string
+  requirements?: string[]
+  inputContract?: string[]
+  outputContract?: string[]
+  edgeCases?: string[]
+  examples?: CodingExample[]
   hints: string[]
   referenceSolution: string
   pytestTests: string

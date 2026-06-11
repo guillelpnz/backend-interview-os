@@ -617,14 +617,16 @@ export const newCompany: CompanyProfile = {
       darkMode={darkMode}
       onToggleDarkMode={() => setDarkMode((value) => !value)}
     >
-      <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-        <BookOpen className="h-4 w-4" aria-hidden="true" />
-        <span>{liveCodingExercises.length} exercises</span>
-        <span>-</span>
-        <span>{deepDiveTopics.length} deep-dive notes</span>
-        <span>-</span>
-        <span>{flashcards.length} flashcards</span>
-      </div>
+      {activeSection !== 'coding-dojo' && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+          <BookOpen className="h-4 w-4" aria-hidden="true" />
+          <span>{liveCodingExercises.length} exercises</span>
+          <span>-</span>
+          <span>{deepDiveTopics.length} deep-dive notes</span>
+          <span>-</span>
+          <span>{flashcards.length} flashcards</span>
+        </div>
+      )}
       {renderActiveSection()}
     </Layout>
   )

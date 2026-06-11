@@ -1,4 +1,4 @@
-import { CheckCircle2, Code2, Filter, Target, XCircle } from 'lucide-react'
+import { CheckCircle2, Code2, Filter, Maximize2, Minimize2, Target, XCircle } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { CompanyProfile } from '../types/company'
 import type { CodingDojoExerciseProgress, CodingDojoProgressMap, Difficulty, LiveCodingExercise } from '../types/content'
@@ -37,6 +37,7 @@ export function CodingDojo({ exercises, companies, selectedCompanyId, darkMode, 
   const [difficultyFilter, setDifficultyFilter] = useState<'All' | Difficulty>('All')
   const [tagFilter, setTagFilter] = useState('All')
   const [interviewMode, setInterviewMode] = useState(false)
+  const [focusMode, setFocusMode] = useState(false)
 
   const tags = useMemo(() => Array.from(new Set(interactiveExercises.flatMap((exercise) => exercise.tags))).sort(), [interactiveExercises])
 
@@ -47,42 +48,45 @@ export function CodingDojo({ exercises, companies, selectedCompanyId, darkMode, 
     return matchesCompany && matchesDifficulty && matchesTag
   })
 
-  const selectedExercise = interactiveExercises.find((exercise) => exercise.id === selectedExerciseId) ?? filteredExercises[0] ?? interactiveExercises[0]
+  const selectedExercise = filteredExercises.find((exercise) => exercise.id === selectedExerciseId) ?? filteredExercises[0] ?? interactiveExercises[0]
   const attempted = interactiveExercises.filter((exercise) => progress[exercise.id]?.attempted).length
   const allPassed = interactiveExercises.filter((exercise) => progress[exercise.id]?.allTestsPassed).length
 
   return (
-    <div className="space-y-5">
-      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-sm font-semibold text-teal-700 dark:text-teal-300">Coding Dojo</p>
-            <h1 className="mt-1 text-3xl font-semibold text-slate-950 dark:text-white">Interactive Python practice</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-              Run visible and hidden tests in the browser, save your solutions locally, and practice explaining trade-offs like a live backend interview.
+    <div className="space-y-4">
+      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-end 2xl:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase text-teal-700 dark:text-teal-300">Coding Dojo</p>
+            <div className="mt-1 flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl font-semibold text-slate-950 dark:text-white">Interactive Python practice</h1>
+              <span className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                {attempted}/{interactiveExercises.length} attempted
+              </span>
+              <span className="rounded bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200">
+                {allPassed} all passed
+              </span>
+            </div>
+            <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+              Pick an exercise, read the contract, write Python in the browser, then run visible tests before trying the hidden set.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-2 text-center">
-            <div className="rounded-md bg-slate-50 px-4 py-3 dark:bg-slate-950/50">
-              <p className="text-2xl font-semibold text-slate-950 dark:text-white">{attempted}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Attempted</p>
-            </div>
-            <div className="rounded-md bg-slate-50 px-4 py-3 dark:bg-slate-950/50">
-              <p className="text-2xl font-semibold text-slate-950 dark:text-white">{allPassed}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">All passed</p>
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={() => setFocusMode((value) => !value)}
+            className="inline-flex w-fit items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            {focusMode ? <Minimize2 className="h-4 w-4" aria-hidden="true" /> : <Maximize2 className="h-4 w-4" aria-hidden="true" />}
+            {focusMode ? 'Show exercise list' : 'Focus editor'}
+          </button>
         </div>
-      </section>
 
-      <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-950 dark:text-slate-50">
-          <Filter className="h-4 w-4" aria-hidden="true" />
-          Filters
-        </div>
-        <div className="grid gap-3 md:grid-cols-4">
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-[180px_160px_220px_minmax(240px,1fr)]">
           <label className="block">
-            <span className="mb-1 block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Company</span>
+            <span className="mb-1 flex items-center gap-1 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
+              <Filter className="h-3.5 w-3.5" aria-hidden="true" />
+              Company
+            </span>
             <select
               value={companyFilter}
               onChange={(event) => setCompanyFilter(event.target.value)}
@@ -121,59 +125,67 @@ export function CodingDojo({ exercises, companies, selectedCompanyId, darkMode, 
               ))}
             </select>
           </label>
-          <label className="flex min-h-10 items-center gap-3 rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700 dark:border-slate-700 dark:text-slate-200 md:mt-5">
+          <label className="flex min-h-10 items-center gap-3 rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700 dark:border-slate-700 dark:text-slate-200 xl:mt-5">
             <input type="checkbox" checked={interviewMode} onChange={(event) => setInterviewMode(event.target.checked)} className="h-4 w-4 accent-teal-600" />
             Interview simulation mode
           </label>
         </div>
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
-        <aside className="space-y-3">
-          {filteredExercises.map((exercise) => {
-            const itemProgress = progress[exercise.id]
-            const selected = selectedExercise?.id === exercise.id
-            return (
-              <button
-                key={exercise.id}
-                type="button"
-                onClick={() => setSelectedExerciseId(exercise.id)}
-                className={`w-full rounded-lg border p-4 text-left transition ${
-                  selected
-                    ? 'border-teal-400 bg-teal-50 dark:border-teal-600 dark:bg-teal-950/30'
-                    : 'border-slate-200 bg-white hover:border-teal-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-teal-700'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold leading-6 text-slate-950 dark:text-slate-50">{exercise.title}</p>
-                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{exercise.difficulty}</p>
-                  </div>
-                  {itemProgress?.allTestsPassed ? (
-                    <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" aria-hidden="true" />
-                  ) : itemProgress?.attempted ? (
-                    <XCircle className="h-5 w-5 shrink-0 text-amber-500" aria-hidden="true" />
-                  ) : (
-                    <Code2 className="h-5 w-5 shrink-0 text-slate-400" aria-hidden="true" />
-                  )}
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <span className={`rounded px-2 py-1 text-xs font-semibold ${progressClass(itemProgress)}`}>{progressLabel(itemProgress)}</span>
-                  {exercise.tags.slice(0, 2).map((tag) => (
-                    <span key={tag} className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </button>
-            )
-          })}
-          {filteredExercises.length === 0 && (
-            <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
-              No interactive exercises match the current filters.
+      <div className={focusMode ? 'grid gap-4' : 'grid gap-4 2xl:grid-cols-[300px_minmax(0,1fr)]'}>
+        {!focusMode && (
+          <aside className="space-y-2 2xl:sticky 2xl:top-6 2xl:max-h-[calc(100vh-3rem)] 2xl:overflow-auto 2xl:pr-1">
+            <div className="flex items-center justify-between px-1 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
+              <span>{filteredExercises.length} exercises</span>
+              <span>{progressLabel(progress[selectedExercise?.id ?? ''])}</span>
             </div>
-          )}
-        </aside>
+            {filteredExercises.map((exercise) => {
+              const itemProgress = progress[exercise.id]
+              const selected = selectedExercise?.id === exercise.id
+              return (
+                <button
+                  key={exercise.id}
+                  type="button"
+                  onClick={() => setSelectedExerciseId(exercise.id)}
+                  className={`w-full rounded-lg border px-3 py-3 text-left transition ${
+                    selected
+                      ? 'border-teal-400 bg-teal-50 dark:border-teal-600 dark:bg-teal-950/30'
+                      : 'border-slate-200 bg-white hover:border-teal-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-teal-700'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold leading-5 text-slate-950 dark:text-slate-50">{exercise.title}</p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <span className={`rounded px-2 py-1 text-xs font-semibold ${progressClass(itemProgress)}`}>{progressLabel(itemProgress)}</span>
+                        <span className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">{exercise.difficulty}</span>
+                      </div>
+                    </div>
+                    {itemProgress?.allTestsPassed ? (
+                      <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" aria-hidden="true" />
+                    ) : itemProgress?.attempted ? (
+                      <XCircle className="h-5 w-5 shrink-0 text-amber-500" aria-hidden="true" />
+                    ) : (
+                      <Code2 className="h-5 w-5 shrink-0 text-slate-400" aria-hidden="true" />
+                    )}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {exercise.tags.slice(0, 3).map((tag) => (
+                      <span key={tag} className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </button>
+              )
+            })}
+            {filteredExercises.length === 0 && (
+              <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+                No interactive exercises match the current filters.
+              </div>
+            )}
+          </aside>
+        )}
 
         {selectedExercise ? (
           <PythonExerciseRunner
