@@ -16,6 +16,10 @@ base: '/backend-interview-os/',
 
 The Coding Dojo is still a static frontend feature. Python execution runs in the browser through Pyodide. The app dynamically loads the matching Pyodide runtime assets from jsDelivr at run time, so GitHub Pages only serves the React build and no backend is required.
 
+The local Pyodide loader chunk is emitted as `assets/pyodide.js` with a stable filename. This avoids stale-browser-cache failures where an older app bundle tries to import a hashed Pyodide chunk that was removed by a later GitHub Pages deploy. A few known historical Pyodide chunk names are kept as tiny static shims that re-export `pyodide.js`.
+
+If the browser reports `Failed to fetch dynamically imported module` for an old `assets/pyodide-*.js` file, hard-refresh the page once. Future deploys should continue using `assets/pyodide.js` for that loader chunk.
+
 Create the repository with GitHub CLI:
 
 ```bash
