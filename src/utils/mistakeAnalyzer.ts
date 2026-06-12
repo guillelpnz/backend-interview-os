@@ -29,6 +29,13 @@ function expectedLiteralAppears(code: string, tests: PythonTestCase[]) {
   })
 }
 
+function stripPythonComments(code: string) {
+  return code
+    .split('\n')
+    .map((line) => line.replace(/\s+#.*$/, '').replace(/^#.*$/, ''))
+    .join('\n')
+}
+
 export function analyzeMistakes({
   code,
   patterns = [],
@@ -41,9 +48,10 @@ export function analyzeMistakes({
   lastResult?: PythonExerciseRunResult | null
 }): MistakeFeedback[] {
   const feedback: MistakeFeedback[] = []
+  const executableCode = stripPythonComments(code)
 
   for (const pattern of patterns) {
-    const matches = patternMatches(code, pattern.pattern, pattern.detect)
+    const matches = patternMatches(executableCode, pattern.pattern, pattern.detect)
     const shouldReport = pattern.detect === 'static-not-contains' ? !matches : matches
 
     if (shouldReport) {
@@ -57,7 +65,7 @@ export function analyzeMistakes({
     }
   }
 
-  if (!/\breturn\b/.test(code)) {
+  if (!/\breturn\b/.test(executableCode)) {
     feedback.push({
       id: 'generic-no-return',
       label: 'No return statement found',
@@ -67,7 +75,7 @@ export function analyzeMistakes({
     })
   }
 
-  if (/\bprint\s*\(/.test(code) && !/\breturn\b/.test(code)) {
+  if (/\bprint\s*\(/.test(executableCode) && !/\breturn\b/.test(executableCode)) {
     feedback.push({
       id: 'generic-print-only',
       label: 'Print-only solution',
@@ -77,7 +85,7 @@ export function analyzeMistakes({
     })
   }
 
-  if (/\.(append|extend|insert|pop|remove|clear|sort)\s*\(/.test(code) && /\b(rows|events|items)\b/.test(code)) {
+  if (/\.(append|extend|insert|pop|remove|clear|sort)\s*\(/.test(executableCode) && /\b(rows|events|items)\b/.test(executableCode)) {
     feedback.push({
       id: 'generic-possible-input-mutation',
       label: 'Possible input mutation',
@@ -87,7 +95,7 @@ export function analyzeMistakes({
     })
   }
 
-  if (expectedLiteralAppears(code, visibleTests)) {
+  if (expectedLiteralAppears(executableCode, visibleTests)) {
     feedback.push({
       id: 'generic-hardcoded-sample',
       label: 'Possible hardcoded sample output',

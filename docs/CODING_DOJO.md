@@ -2,6 +2,8 @@
 
 The Coding Dojo turns selected Python live coding exercises into executable in-browser practice.
 
+The current collection includes interactive exercises for grouping, variance calculations, duplicate detection, permission checks, idempotency, external-system merges, validation, vendor-quarter aggregation, pagination, reconciliation, stale integration detection, field normalization and top-N spend ranking.
+
 ## How the runner works
 
 The app remains fully static:
@@ -81,6 +83,24 @@ hiddenTests: [
 ```
 
 The function must return a JSON-compatible result: dictionaries, lists, strings, numbers, booleans or `None`.
+
+Scalability checklist for new exercises:
+
+- Prefer pure functions with deterministic output.
+- Include two visible tests: one core example and one important edge case.
+- Include two hidden tests: one boundary case and one generalization case.
+- Add mistake patterns only when they catch likely interview mistakes without being too noisy.
+- Fill `brief`, `requirements`, `inputContract`, `outputContract`, `edgeCases` and `examples` so the task contract is clear in the UI.
+- Keep hidden tests educational, not security-critical; they are bundled in the frontend.
+
+## Finding exercises in the UI
+
+The Dojo list supports:
+
+- Text search across titles, prompts, function names, tags and task contracts.
+- Company, difficulty and tag filters.
+- Progress status filters for not attempted, needs work, visible passed and all passed.
+- Focus editor mode to hide the exercise rail when you want maximum coding space.
 
 ## Visible and hidden tests
 

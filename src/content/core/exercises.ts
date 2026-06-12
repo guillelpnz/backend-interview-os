@@ -499,6 +499,47 @@ forecasts = {"Sales": 1000, "Marketing": 500}`,
     tags: ['python', 'merge', 'data-modeling'],
     prompt:
       'Merge ERP accounts and CRM account metadata by account_id. ERP values are required; CRM metadata is optional. Return only ERP accounts enriched with CRM fields when present.',
+    brief:
+      'Write a pure function that enriches authoritative ERP account rows with optional CRM metadata by account_id.',
+    requirements: [
+      'Implement merge_accounts(erp_accounts, crm_accounts).',
+      'Return every valid ERP account, even when there is no matching CRM row.',
+      'Merge CRM fields into the ERP row when account_id matches.',
+      'Keep ERP values authoritative when the same key exists on both sides.',
+    ],
+    inputContract: [
+      'erp_accounts is a list of account dictionaries from ERP.',
+      'crm_accounts is a list of account dictionaries from CRM.',
+      'A usable row has a non-empty account_id.',
+    ],
+    outputContract: [
+      'Return a list of merged account dictionaries.',
+      'Preserve ERP input order.',
+      'Do not include CRM-only accounts.',
+      'Do not mutate the input rows.',
+    ],
+    edgeCases: [
+      'ERP rows without account_id are skipped.',
+      'CRM rows without account_id are ignored.',
+      'If CRM contains account_id, do not duplicate that field in the merge.',
+    ],
+    examples: [
+      {
+        label: 'ERP enriched with CRM owner',
+        input: `erp_accounts = [
+  {"account_id": "A", "amount": 10},
+  {"account_id": "B", "amount": 20}
+]
+crm_accounts = [
+  {"account_id": "A", "owner": "Ana"},
+  {"account_id": "C", "owner": "Cora"}
+]`,
+        expected: `[
+  {"account_id": "A", "amount": 10, "owner": "Ana"},
+  {"account_id": "B", "amount": 20}
+]`,
+      },
+    ],
     inputExample: `erp=[{"account_id": "A", "amount": 10}], crm=[{"account_id": "A", "owner": "Ana"}]`,
     expectedOutput: `[{"account_id": "A", "amount": 10, "owner": "Ana"}]`,
     hints: ['Index CRM rows by account_id.', 'Decide which side is authoritative.', 'Be careful not to mutate inputs unless allowed.'],
@@ -513,7 +554,7 @@ forecasts = {"Sales": 1000, "Marketing": 500}`,
         metadata = crm_by_id.get(account_id)
         if metadata:
             for key, value in metadata.items():
-                if key != "account_id":
+                if key != "account_id" and key not in enriched:
                     enriched[key] = value
         merged.append(enriched)
     return merged`,
@@ -528,6 +569,100 @@ forecasts = {"Sales": 1000, "Marketing": 500}`,
     commonMistakes: ['Nested loops for large inputs.', 'Dropping ERP rows with no CRM match.', 'Overwriting authoritative fields accidentally.'],
     interviewerTips: ['Ask about conflicting fields.', 'Name the authoritative source.', 'Mention database joins for persistent data.'],
     companyRelevance: ['abacum', 'saas', 'integrations'],
+    evaluationMode: 'function',
+    functionName: 'merge_accounts',
+    starterCode: `def merge_accounts(erp_accounts, crm_accounts):
+    # ERP is authoritative and must drive the output rows.
+    # CRM metadata is optional enrichment by account_id.
+    # Preserve ERP order and avoid mutating inputs.
+    pass
+`,
+    solution: `def merge_accounts(erp_accounts, crm_accounts):
+    crm_by_id = {row["account_id"]: row for row in crm_accounts if row.get("account_id")}
+    merged = []
+    for account in erp_accounts:
+        account_id = account.get("account_id")
+        if not account_id:
+            continue
+        enriched = dict(account)
+        metadata = crm_by_id.get(account_id)
+        if metadata:
+            for key, value in metadata.items():
+                if key != "account_id" and key not in enriched:
+                    enriched[key] = value
+        merged.append(enriched)
+    return merged
+`,
+    visibleTests: [
+      {
+        id: 'enriches-erp-rows',
+        name: 'Enriches ERP rows with matching CRM metadata',
+        input: [
+          [
+            { account_id: 'A', amount: 10 },
+            { account_id: 'B', amount: 20 },
+          ],
+          [
+            { account_id: 'A', owner: 'Ana' },
+            { account_id: 'C', owner: 'Cora' },
+          ],
+        ],
+        expected: [
+          { account_id: 'A', amount: 10, owner: 'Ana' },
+          { account_id: 'B', amount: 20 },
+        ],
+        explanation: 'CRM-only account C should not appear because ERP is authoritative.',
+      },
+      {
+        id: 'preserves-erp-values',
+        name: 'ERP values win on conflicting keys',
+        input: [[{ account_id: 'A', owner: 'ERP owner', amount: 10 }], [{ account_id: 'A', owner: 'CRM owner', segment: 'Mid-market' }]],
+        expected: [{ account_id: 'A', owner: 'ERP owner', amount: 10, segment: 'Mid-market' }],
+      },
+    ],
+    hiddenTests: [
+      {
+        id: 'skips-invalid-erp',
+        name: 'Skips ERP rows without account id',
+        input: [[{ amount: 10 }, { account_id: 'B', amount: 20 }], [{ account_id: 'B', owner: 'Bea' }]],
+        expected: [{ account_id: 'B', amount: 20, owner: 'Bea' }],
+      },
+      {
+        id: 'does-not-mutate-input',
+        name: 'Does not mutate the original ERP row',
+        input: [[{ account_id: 'A', amount: 10 }], [{ account_id: 'A', owner: 'Ana' }]],
+        expected: [{ account_id: 'A', amount: 10, owner: 'Ana' }],
+      },
+    ],
+    mistakePatterns: [
+      {
+        id: 'nested-loop-risk',
+        label: 'Nested-loop merge risk',
+        description: 'Nested loops are easy but scale poorly for integration imports.',
+        severity: 'warning',
+        detect: 'regex',
+        pattern: 'for\\s+\\w+\\s+in\\s+erp_accounts[\\s\\S]*for\\s+\\w+\\s+in\\s+crm_accounts',
+        feedback: 'Index CRM rows by account_id first so the merge stays O(e + c).',
+      },
+      {
+        id: 'mutation-risk',
+        label: 'Possible input mutation',
+        description: 'The output should be a new merged row, not a mutated ERP row.',
+        severity: 'warning',
+        detect: 'regex',
+        pattern: '\\.update\\(|\\[.*\\]\\s*=',
+        feedback: 'Use dict(account) to copy ERP rows before adding CRM fields.',
+      },
+      {
+        id: 'no-return',
+        label: 'No return statement',
+        description: 'The function should return the merged account list.',
+        severity: 'error',
+        detect: 'static-not-contains',
+        pattern: 'return',
+        feedback: 'Return the merged list.',
+      },
+    ],
   },
   {
     id: 'validate-missing-fields',
@@ -536,6 +671,44 @@ forecasts = {"Sales": 1000, "Marketing": 500}`,
     tags: ['python', 'validation', 'data-quality'],
     prompt:
       'Validate imported rows. Return a list of errors with row index, field and message for each missing required field.',
+    brief:
+      'Write a pure validator that reports every missing required field across imported rows, instead of stopping at the first error.',
+    requirements: [
+      'Implement validate_required_fields(rows, required_fields).',
+      'Inspect every row and every required field.',
+      'Return one error object for each missing field.',
+      'Use zero-based row indexes.',
+    ],
+    inputContract: [
+      'rows is a list of dictionaries from an import.',
+      'required_fields is a list of field names.',
+      'A missing field is either absent, None, or an empty string.',
+    ],
+    outputContract: [
+      'Return a list of {"row": index, "field": field, "message": "Missing required field"}.',
+      'Preserve row order, then required_fields order.',
+      'Do not treat numeric 0 or boolean False as missing.',
+    ],
+    edgeCases: [
+      'Collect all errors, not only the first error per row.',
+      'Empty required_fields should return an empty list.',
+      'Empty rows should report every required field as missing.',
+    ],
+    examples: [
+      {
+        label: 'Import validation',
+        input: `rows = [
+  {"department": "Sales", "amount": 0},
+  {"department": "", "date": "2026-01-01"}
+]
+required_fields = ["department", "date", "amount"]`,
+        expected: `[
+  {"row": 0, "field": "date", "message": "Missing required field"},
+  {"row": 1, "field": "department", "message": "Missing required field"},
+  {"row": 1, "field": "amount", "message": "Missing required field"}
+]`,
+      },
+    ],
     inputExample: `rows=[{"department": "Sales", "amount": 10}, {"department": "", "date": "2026-01-01"}], required=["department","date","amount"]`,
     expectedOutput: `[{"row": 0, "field": "date", "message": "Missing required field"}, {"row": 1, "field": "department", "message": "Missing required field"}, {"row": 1, "field": "amount", "message": "Missing required field"}]`,
     hints: ['Use enumerate for row indexes.', 'Empty string should count as missing.', 'Zero should not count as missing.'],
@@ -562,6 +735,98 @@ forecasts = {"Sales": 1000, "Marketing": 500}`,
     commonMistakes: ['Treating 0 as missing.', 'Only returning the first error per row when all errors are needed.', 'Using one-based row indexes without clarifying.'],
     interviewerTips: ['Clarify output shape.', 'Mention collecting all errors improves user feedback.', 'Discuss schema validation libraries after solving manually.'],
     companyRelevance: ['abacum', 'integrations', 'saas'],
+    evaluationMode: 'function',
+    functionName: 'validate_required_fields',
+    starterCode: `def validate_required_fields(rows, required_fields):
+    # return one error dict per missing required field
+    # missing means absent, None, or empty string
+    # 0 and False are valid values
+    pass
+`,
+    solution: `def validate_required_fields(rows, required_fields):
+    errors = []
+    for index, row in enumerate(rows):
+        for field in required_fields:
+            value = row.get(field)
+            if value is None or value == "":
+                errors.append({
+                    "row": index,
+                    "field": field,
+                    "message": "Missing required field",
+                })
+    return errors
+`,
+    visibleTests: [
+      {
+        id: 'collects-all-errors',
+        name: 'Collects all missing-field errors',
+        input: [
+          [
+            { department: 'Sales', amount: 0 },
+            { department: '', date: '2026-01-01' },
+          ],
+          ['department', 'date', 'amount'],
+        ],
+        expected: [
+          { row: 0, field: 'date', message: 'Missing required field' },
+          { row: 1, field: 'department', message: 'Missing required field' },
+          { row: 1, field: 'amount', message: 'Missing required field' },
+        ],
+        explanation: '0 is valid, but missing date, empty department and missing amount are errors.',
+      },
+      {
+        id: 'no-required-fields',
+        name: 'No required fields gives no errors',
+        input: [[{ department: 'Sales' }], []],
+        expected: [],
+      },
+    ],
+    hiddenTests: [
+      {
+        id: 'false-is-valid',
+        name: 'False is not missing',
+        input: [[{ active: false, amount: 0, name: '' }], ['active', 'amount', 'name']],
+        expected: [{ row: 0, field: 'name', message: 'Missing required field' }],
+      },
+      {
+        id: 'empty-row',
+        name: 'Empty row reports each required field',
+        input: [[{}], ['department', 'date']],
+        expected: [
+          { row: 0, field: 'department', message: 'Missing required field' },
+          { row: 0, field: 'date', message: 'Missing required field' },
+        ],
+      },
+    ],
+    mistakePatterns: [
+      {
+        id: 'truthiness-missing',
+        label: 'Truthiness can mark 0 or False as missing',
+        description: 'Financial imports often contain valid zero values.',
+        severity: 'warning',
+        detect: 'regex',
+        pattern: 'if\\s+not\\s+\\w+',
+        feedback: 'Check explicitly for None or empty string so 0 and False remain valid.',
+      },
+      {
+        id: 'no-enumerate',
+        label: 'Row index tracking not obvious',
+        description: 'The output needs zero-based row indexes.',
+        severity: 'info',
+        detect: 'static-not-contains',
+        pattern: 'enumerate',
+        feedback: 'enumerate(rows) is the clearest way to keep zero-based row indexes.',
+      },
+      {
+        id: 'no-return',
+        label: 'No return statement',
+        description: 'The function should return the list of validation errors.',
+        severity: 'error',
+        detect: 'static-not-contains',
+        pattern: 'return',
+        feedback: 'Return the errors list.',
+      },
+    ],
   },
   {
     id: 'permission-checker',
@@ -723,6 +988,43 @@ action = "write"`,
     tags: ['python', 'dates', 'grouping'],
     prompt:
       'Given expense rows with vendor, date and amount, return spend per vendor per quarter in the format YYYY-Qn.',
+    brief:
+      'Write a pure function that groups expense rows by vendor and calendar quarter, then sums spend per group.',
+    requirements: [
+      'Implement spend_by_vendor_quarter(rows).',
+      'Use ISO date strings in YYYY-MM-DD format.',
+      'Convert month to calendar quarter using (month - 1) // 3 + 1.',
+      'Return normal nested dictionaries, not defaultdict objects.',
+    ],
+    inputContract: [
+      'rows is a list of dictionaries.',
+      'Each valid row has vendor, date, and amount.',
+      'date is an ISO date string; the quarter key should be YYYY-Qn.',
+    ],
+    outputContract: [
+      'Return {"Vendor": {"YYYY-Qn": total_amount}}.',
+      'Skip rows missing vendor, date, or amount.',
+      'Order of dictionary keys does not matter.',
+    ],
+    edgeCases: [
+      'March is Q1 and April is Q2.',
+      'amount = 0 is valid.',
+      'Empty input should return {}.',
+    ],
+    examples: [
+      {
+        label: 'Vendor quarter spend',
+        input: `rows = [
+  {"vendor": "AWS", "date": "2026-02-10", "amount": 100},
+  {"vendor": "AWS", "date": "2026-04-01", "amount": 200},
+  {"vendor": "GitLab", "date": "2026-03-31", "amount": 50}
+]`,
+        expected: `{
+  "AWS": {"2026-Q1": 100, "2026-Q2": 200},
+  "GitLab": {"2026-Q1": 50}
+}`,
+      },
+    ],
     inputExample: `[{"vendor": "AWS", "date": "2026-02-10", "amount": 100}, {"vendor": "AWS", "date": "2026-04-01", "amount": 200}]`,
     expectedOutput: `{"AWS": {"2026-Q1": 100, "2026-Q2": 200}}`,
     hints: ['Month to quarter: (month - 1) // 3 + 1.', 'Use date[5:7] if ISO date is guaranteed.', 'Ask whether fiscal quarters differ from calendar quarters.'],
@@ -755,6 +1057,97 @@ def spend_by_vendor_quarter(rows):
     commonMistakes: ['Using zero-based quarters in output.', 'Ignoring fiscal-year definitions.', 'Crashing on missing dates.'],
     interviewerTips: ['Ask whether quarters are fiscal or calendar.', 'Mention date parsing if input is not guaranteed ISO.', 'Keep transformation readable.'],
     companyRelevance: ['abacum', 'finance', 'saas'],
+    evaluationMode: 'function',
+    functionName: 'spend_by_vendor_quarter',
+    starterCode: `def spend_by_vendor_quarter(rows):
+    # return {"Vendor": {"YYYY-Qn": total_amount}}
+    # use calendar quarters from the ISO date month
+    # skip invalid rows, but keep amount=0
+    pass
+`,
+    solution: `from collections import defaultdict
+
+def spend_by_vendor_quarter(rows):
+    totals = defaultdict(lambda: defaultdict(float))
+    for row in rows:
+        vendor = row.get("vendor")
+        date = row.get("date")
+        amount = row.get("amount")
+        if not vendor or not date or amount is None:
+            continue
+        year = date[:4]
+        month = int(date[5:7])
+        quarter = (month - 1) // 3 + 1
+        totals[vendor][f"{year}-Q{quarter}"] += amount
+    return {vendor: dict(quarters) for vendor, quarters in totals.items()}
+`,
+    visibleTests: [
+      {
+        id: 'groups-vendor-quarters',
+        name: 'Groups vendor spend by calendar quarter',
+        input: [
+          [
+            { vendor: 'AWS', date: '2026-02-10', amount: 100 },
+            { vendor: 'AWS', date: '2026-04-01', amount: 200 },
+            { vendor: 'GitLab', date: '2026-03-31', amount: 50 },
+          ],
+        ],
+        expected: {
+          AWS: { '2026-Q1': 100, '2026-Q2': 200 },
+          GitLab: { '2026-Q1': 50 },
+        },
+        explanation: 'March belongs to Q1; April belongs to Q2.',
+      },
+      {
+        id: 'skips-invalid-keeps-zero',
+        name: 'Skips invalid rows but keeps zero amount',
+        input: [[{ vendor: 'AWS', date: '2026-01-01', amount: 0 }, { vendor: '', date: '2026-01-01', amount: 99 }, { vendor: 'AWS', amount: 10 }]],
+        expected: { AWS: { '2026-Q1': 0 } },
+      },
+    ],
+    hiddenTests: [
+      {
+        id: 'quarter-boundaries',
+        name: 'Handles quarter boundaries',
+        input: [[{ vendor: 'Vercel', date: '2026-06-30', amount: 10 }, { vendor: 'Vercel', date: '2026-07-01', amount: 15 }]],
+        expected: { Vercel: { '2026-Q2': 10, '2026-Q3': 15 } },
+      },
+      {
+        id: 'empty-expenses',
+        name: 'Empty input returns empty dict',
+        input: [[]],
+        expected: {},
+      },
+    ],
+    mistakePatterns: [
+      {
+        id: 'quarter-formula',
+        label: 'Quarter calculation not obvious',
+        description: 'Calendar quarters are easy to get off by one.',
+        severity: 'warning',
+        detect: 'static-not-contains',
+        pattern: '//\\s*3|/\\s*3',
+        feedback: 'Use (month - 1) // 3 + 1 to map Jan-Mar to Q1, Apr-Jun to Q2, and so on.',
+      },
+      {
+        id: 'no-vendor-grouping',
+        label: 'Vendor grouping may be missing',
+        description: 'The output is nested by vendor and quarter.',
+        severity: 'warning',
+        detect: 'static-not-contains',
+        pattern: 'vendor',
+        feedback: 'Group by vendor first, then by quarter.',
+      },
+      {
+        id: 'no-return',
+        label: 'No return statement',
+        description: 'The function should return the nested spend dictionary.',
+        severity: 'error',
+        detect: 'static-not-contains',
+        pattern: 'return',
+        feedback: 'Return the totals dictionary.',
+      },
+    ],
   },
   {
     id: 'pagination',
@@ -763,6 +1156,44 @@ def spend_by_vendor_quarter(rows):
     tags: ['python', 'pagination', 'api'],
     prompt:
       'Implement paginate(items, page, page_size) returning items, total, page, page_size and has_next. Pages are one-based.',
+    brief:
+      'Write a pure helper for one-based offset pagination that normalizes invalid page inputs and returns metadata with the page slice.',
+    requirements: [
+      'Implement paginate(items, page, page_size).',
+      'Treat pages as one-based.',
+      'Normalize page < 1 to 1 and page_size < 1 to 1.',
+      'Compute has_next from the normalized page window.',
+    ],
+    inputContract: [
+      'items is a list.',
+      'page is an integer requested by the caller.',
+      'page_size is an integer requested by the caller.',
+    ],
+    outputContract: [
+      'Return {"items": [...], "total": n, "page": page, "page_size": page_size, "has_next": bool}.',
+      'items must contain only the requested page slice.',
+      'total is the length of the original items list.',
+    ],
+    edgeCases: [
+      'Page 1 starts at index 0.',
+      'A page beyond the end returns an empty items list.',
+      'Do not mutate the input list.',
+    ],
+    examples: [
+      {
+        label: 'Second page',
+        input: `items = [1, 2, 3, 4, 5]
+page = 2
+page_size = 2`,
+        expected: `{
+  "items": [3, 4],
+  "total": 5,
+  "page": 2,
+  "page_size": 2,
+  "has_next": True
+}`,
+      },
+    ],
     inputExample: `items=[1,2,3,4,5], page=2, page_size=2`,
     expectedOutput: `{"items": [3,4], "total": 5, "page": 2, "page_size": 2, "has_next": True}`,
     hints: ['Normalize invalid page and page_size.', 'Compute start = (page - 1) * page_size.', 'Do not mutate items.'],
@@ -792,6 +1223,86 @@ def spend_by_vendor_quarter(rows):
     commonMistakes: ['Off-by-one page math.', 'Returning has_next true on the last page.', 'Ignoring invalid inputs.'],
     interviewerTips: ['Mention offset pagination limitations in databases.', 'Discuss keyset pagination for large tables.', 'Clarify one-based vs zero-based pages.'],
     companyRelevance: ['abacum', 'api', 'saas'],
+    evaluationMode: 'function',
+    functionName: 'paginate',
+    starterCode: `def paginate(items, page, page_size):
+    # pages are one-based
+    # normalize invalid page/page_size values to 1
+    # return items slice plus total/page/page_size/has_next
+    pass
+`,
+    solution: `def paginate(items, page, page_size):
+    page = max(1, page)
+    page_size = max(1, page_size)
+    total = len(items)
+    start = (page - 1) * page_size
+    end = start + page_size
+    return {
+        "items": items[start:end],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "has_next": end < total,
+    }
+`,
+    visibleTests: [
+      {
+        id: 'second-page',
+        name: 'Returns the second one-based page',
+        input: [[1, 2, 3, 4, 5], 2, 2],
+        expected: { items: [3, 4], total: 5, page: 2, page_size: 2, has_next: true },
+        explanation: 'Page 2 with size 2 starts at index 2.',
+      },
+      {
+        id: 'normalizes-invalid-values',
+        name: 'Normalizes invalid page and page size',
+        input: [[1], 0, 0],
+        expected: { items: [1], total: 1, page: 1, page_size: 1, has_next: false },
+      },
+    ],
+    hiddenTests: [
+      {
+        id: 'last-page',
+        name: 'Last partial page has no next page',
+        input: [[1, 2, 3, 4, 5], 3, 2],
+        expected: { items: [5], total: 5, page: 3, page_size: 2, has_next: false },
+      },
+      {
+        id: 'beyond-end',
+        name: 'Page beyond end returns empty list',
+        input: [[1, 2, 3], 5, 2],
+        expected: { items: [], total: 3, page: 5, page_size: 2, has_next: false },
+      },
+    ],
+    mistakePatterns: [
+      {
+        id: 'zero-based-page-risk',
+        label: 'Potential zero-based page math',
+        description: 'The prompt defines pages as one-based.',
+        severity: 'warning',
+        detect: 'static-not-contains',
+        pattern: 'page - 1|page\\s*-\\s*1',
+        feedback: 'Use start = (page - 1) * page_size for one-based pagination.',
+      },
+      {
+        id: 'missing-has-next',
+        label: 'Missing has_next metadata',
+        description: 'API pagination responses need caller-friendly metadata.',
+        severity: 'warning',
+        detect: 'static-not-contains',
+        pattern: 'has_next',
+        feedback: 'Return has_next based on whether the end index is still before total.',
+      },
+      {
+        id: 'no-return',
+        label: 'No return statement',
+        description: 'The function should return a pagination dictionary.',
+        severity: 'error',
+        detect: 'static-not-contains',
+        pattern: 'return',
+        feedback: 'Return the pagination metadata dictionary.',
+      },
+    ],
   },
   {
     id: 'reconcile-transactions',
@@ -800,6 +1311,48 @@ def spend_by_vendor_quarter(rows):
     tags: ['python', 'reconciliation', 'finance'],
     prompt:
       'Compare expected and actual transactions by id. Return missing ids, unexpected ids and amount mismatches.',
+    brief:
+      'Write a pure reconciliation function that compares expected and actual transaction imports by id and explains the differences.',
+    requirements: [
+      'Implement reconcile(expected, actual).',
+      'Index both lists by transaction id.',
+      'Return ids missing from actual, ids unexpected in actual, and amount mismatches for ids present on both sides.',
+      'Sort ids so the output is deterministic.',
+    ],
+    inputContract: [
+      'expected is a list of dictionaries with id and amount.',
+      'actual is a list of dictionaries with id and amount.',
+      'Each id is assumed unique for this exercise.',
+    ],
+    outputContract: [
+      'Return {"missing": [...], "unexpected": [...], "mismatched": [...]}.',
+      'missing contains ids present in expected but absent from actual.',
+      'unexpected contains ids present in actual but absent from expected.',
+      'mismatched contains {"id": id, "expected": amount, "actual": amount}.',
+    ],
+    edgeCases: [
+      'Matching ids with equal amounts are not reported.',
+      'Return sorted missing and unexpected ids.',
+      'Return mismatches sorted by id.',
+    ],
+    examples: [
+      {
+        label: 'Expected vs actual import',
+        input: `expected = [
+  {"id": "A", "amount": 10},
+  {"id": "C", "amount": 7}
+]
+actual = [
+  {"id": "A", "amount": 12},
+  {"id": "B", "amount": 5}
+]`,
+        expected: `{
+  "missing": ["C"],
+  "unexpected": ["B"],
+  "mismatched": [{"id": "A", "expected": 10, "actual": 12}]
+}`,
+      },
+    ],
     inputExample: `expected=[{"id":"A","amount":10}], actual=[{"id":"A","amount":12},{"id":"B","amount":5}]`,
     expectedOutput: `{"missing": [], "unexpected": ["B"], "mismatched": [{"id": "A", "expected": 10, "actual": 12}]}`,
     hints: ['Index both lists by id.', 'Think about duplicate ids separately.', 'Sort ids for deterministic output.'],
@@ -837,6 +1390,123 @@ def spend_by_vendor_quarter(rows):
     commonMistakes: ['Nested loops.', 'Not making output deterministic.', 'Ignoring duplicate transaction ids.'],
     interviewerTips: ['Call out duplicate handling as a follow-up.', 'Use precise financial language.', 'Mention tolerance for decimals if relevant.'],
     companyRelevance: ['abacum', 'finance', 'saas'],
+    evaluationMode: 'function',
+    functionName: 'reconcile',
+    starterCode: `def reconcile(expected, actual):
+    # compare transaction lists by id
+    # return missing ids, unexpected ids, and amount mismatches
+    # make output deterministic by sorting ids
+    pass
+`,
+    solution: `def reconcile(expected, actual):
+    expected_by_id = {row["id"]: row for row in expected}
+    actual_by_id = {row["id"]: row for row in actual}
+    expected_ids = set(expected_by_id)
+    actual_ids = set(actual_by_id)
+
+    mismatched = []
+    for transaction_id in sorted(expected_ids & actual_ids):
+        expected_amount = expected_by_id[transaction_id].get("amount")
+        actual_amount = actual_by_id[transaction_id].get("amount")
+        if expected_amount != actual_amount:
+            mismatched.append({
+                "id": transaction_id,
+                "expected": expected_amount,
+                "actual": actual_amount,
+            })
+
+    return {
+        "missing": sorted(expected_ids - actual_ids),
+        "unexpected": sorted(actual_ids - expected_ids),
+        "mismatched": mismatched,
+    }
+`,
+    visibleTests: [
+      {
+        id: 'basic-reconciliation',
+        name: 'Reports missing, unexpected and mismatched transactions',
+        input: [
+          [
+            { id: 'A', amount: 10 },
+            { id: 'C', amount: 7 },
+          ],
+          [
+            { id: 'A', amount: 12 },
+            { id: 'B', amount: 5 },
+          ],
+        ],
+        expected: {
+          missing: ['C'],
+          unexpected: ['B'],
+          mismatched: [{ id: 'A', expected: 10, actual: 12 }],
+        },
+      },
+      {
+        id: 'matching-empty-diff',
+        name: 'Matching transactions produce empty diff',
+        input: [[{ id: 'A', amount: 10 }], [{ id: 'A', amount: 10 }]],
+        expected: { missing: [], unexpected: [], mismatched: [] },
+      },
+    ],
+    hiddenTests: [
+      {
+        id: 'sorted-output',
+        name: 'Sorts ids deterministically',
+        input: [
+          [
+            { id: 'C', amount: 3 },
+            { id: 'A', amount: 1 },
+          ],
+          [
+            { id: 'D', amount: 4 },
+            { id: 'B', amount: 2 },
+          ],
+        ],
+        expected: { missing: ['A', 'C'], unexpected: ['B', 'D'], mismatched: [] },
+      },
+      {
+        id: 'multiple-mismatches-sorted',
+        name: 'Returns mismatches sorted by id',
+        input: [[{ id: 'B', amount: 20 }, { id: 'A', amount: 10 }], [{ id: 'B', amount: 25 }, { id: 'A', amount: 5 }]],
+        expected: {
+          missing: [],
+          unexpected: [],
+          mismatched: [
+            { id: 'A', expected: 10, actual: 5 },
+            { id: 'B', expected: 20, actual: 25 },
+          ],
+        },
+      },
+    ],
+    mistakePatterns: [
+      {
+        id: 'nested-loop-risk',
+        label: 'Nested-loop reconciliation risk',
+        description: 'Nested loops make reconciliation slower and noisier than needed.',
+        severity: 'warning',
+        detect: 'regex',
+        pattern: 'for\\s+\\w+\\s+in\\s+expected[\\s\\S]*for\\s+\\w+\\s+in\\s+actual',
+        feedback: 'Index both lists by id, then compare sets of ids.',
+      },
+      {
+        id: 'not-sorted',
+        label: 'Deterministic sorting not obvious',
+        description: 'Sorted output makes tests and interview explanations cleaner.',
+        severity: 'info',
+        detect: 'static-not-contains',
+        pattern: 'sorted',
+        feedback: 'Sort missing, unexpected and common ids before building the result.',
+      },
+      {
+        id: 'no-return',
+        label: 'No return statement',
+        description: 'The function should return the reconciliation summary.',
+        severity: 'error',
+        detect: 'static-not-contains',
+        pattern: 'return',
+        feedback: 'Return the reconciliation dictionary.',
+      },
+    ],
   },
   {
     id: 'stale-integrations',
@@ -845,6 +1515,42 @@ def spend_by_vendor_quarter(rows):
     tags: ['python', 'dates', 'integrations'],
     prompt:
       'Given integrations with last_success_at as YYYY-MM-DD and a current date, return integration ids stale by more than threshold_days.',
+    brief:
+      'Write a pure function that identifies integrations whose last successful sync is older than the allowed threshold.',
+    requirements: [
+      'Implement stale_integrations(integrations, today, threshold_days).',
+      'Parse dates with datetime.date.fromisoformat.',
+      'An integration is stale when age in days is strictly greater than threshold_days.',
+      'Treat missing last_success_at as stale.',
+    ],
+    inputContract: [
+      'integrations is a list of dictionaries with id and last_success_at.',
+      'today is a YYYY-MM-DD string.',
+      'threshold_days is an integer.',
+    ],
+    outputContract: [
+      'Return a list of stale integration ids.',
+      'Preserve input order.',
+      'Do not include integrations whose age is exactly threshold_days.',
+    ],
+    edgeCases: [
+      'Missing or None last_success_at is stale.',
+      'Exactly threshold_days old is not stale because the rule is "more than".',
+      'Empty input returns an empty list.',
+    ],
+    examples: [
+      {
+        label: 'Integration health check',
+        input: `integrations = [
+  {"id": "erp", "last_success_at": "2026-01-01"},
+  {"id": "crm", "last_success_at": "2026-01-09"},
+  {"id": "hris", "last_success_at": None}
+]
+today = "2026-01-10"
+threshold_days = 7`,
+        expected: `["erp", "hris"]`,
+      },
+    ],
     inputExample: `integrations=[{"id":"erp","last_success_at":"2026-01-01"}], today="2026-01-10", threshold_days=7`,
     expectedOutput: `["erp"]`,
     hints: ['Use datetime.date.fromisoformat.', 'A missing last_success_at may be stale depending on requirements.', 'Clarify greater than vs greater or equal.'],
@@ -873,6 +1579,102 @@ def stale_integrations(integrations, today, threshold_days):
     commonMistakes: ['Comparing date strings manually.', 'Ambiguous threshold inclusivity.', 'Crashing on missing timestamps.'],
     interviewerTips: ['Clarify missing timestamp semantics.', 'Mention time zones for timestamps.', 'Connect to alerting and SLAs.'],
     companyRelevance: ['abacum', 'integrations', 'reliability'],
+    evaluationMode: 'function',
+    functionName: 'stale_integrations',
+    starterCode: `def stale_integrations(integrations, today, threshold_days):
+    # return ids whose last_success_at is older than threshold_days
+    # missing last_success_at counts as stale
+    # exactly threshold_days old is not stale
+    pass
+`,
+    solution: `from datetime import date
+
+def stale_integrations(integrations, today, threshold_days):
+    today_date = date.fromisoformat(today)
+    stale = []
+    for integration in integrations:
+        last_success_at = integration.get("last_success_at")
+        if not last_success_at:
+            stale.append(integration.get("id"))
+            continue
+        age = (today_date - date.fromisoformat(last_success_at)).days
+        if age > threshold_days:
+            stale.append(integration.get("id"))
+    return stale
+`,
+    visibleTests: [
+      {
+        id: 'detects-stale-and-missing',
+        name: 'Detects stale and missing timestamps',
+        input: [
+          [
+            { id: 'erp', last_success_at: '2026-01-01' },
+            { id: 'crm', last_success_at: '2026-01-09' },
+            { id: 'hris', last_success_at: null },
+          ],
+          '2026-01-10',
+          7,
+        ],
+        expected: ['erp', 'hris'],
+      },
+      {
+        id: 'threshold-exclusive',
+        name: 'Exactly threshold days old is not stale',
+        input: [[{ id: 'erp', last_success_at: '2026-01-03' }], '2026-01-10', 7],
+        expected: [],
+      },
+    ],
+    hiddenTests: [
+      {
+        id: 'preserves-order',
+        name: 'Preserves input order of stale ids',
+        input: [
+          [
+            { id: 'a', last_success_at: '2026-01-01' },
+            { id: 'b', last_success_at: '2026-01-02' },
+            { id: 'c', last_success_at: '2026-01-10' },
+          ],
+          '2026-01-20',
+          7,
+        ],
+        expected: ['a', 'b'],
+      },
+      {
+        id: 'empty-integrations',
+        name: 'Empty input returns empty list',
+        input: [[], '2026-01-10', 7],
+        expected: [],
+      },
+    ],
+    mistakePatterns: [
+      {
+        id: 'date-parsing-missing',
+        label: 'Date parsing not obvious',
+        description: 'String comparison can hide subtle date/time bugs.',
+        severity: 'warning',
+        detect: 'static-not-contains',
+        pattern: 'fromisoformat',
+        feedback: 'Use date.fromisoformat(...) before subtracting dates.',
+      },
+      {
+        id: 'inclusive-threshold-risk',
+        label: 'Threshold inclusivity risk',
+        description: 'The prompt says stale by more than threshold_days.',
+        severity: 'info',
+        detect: 'regex',
+        pattern: '>=\\s*threshold_days',
+        feedback: 'Use age > threshold_days, not >=, for this prompt.',
+      },
+      {
+        id: 'no-return',
+        label: 'No return statement',
+        description: 'The function should return stale integration ids.',
+        severity: 'error',
+        detect: 'static-not-contains',
+        pattern: 'return',
+        feedback: 'Return the stale id list.',
+      },
+    ],
   },
   {
     id: 'normalize-field-names',
@@ -881,6 +1683,48 @@ def stale_integrations(integrations, today, threshold_days):
     tags: ['python', 'normalization', 'integrations'],
     prompt:
       'Normalize external row keys using a mapping. Preserve unmapped keys in snake_case.',
+    brief:
+      'Write a pure function that normalizes one external-system row into internal field names, using explicit mappings first and snake_case as fallback.',
+    requirements: [
+      'Implement normalize_fields(row, mapping).',
+      'For each input key, use mapping[key] when it exists.',
+      'For unmapped keys, convert the key to snake_case.',
+      'Keep values unchanged.',
+    ],
+    inputContract: [
+      'row is a dictionary with external field names.',
+      'mapping is a dictionary from exact external keys to internal keys.',
+      'External keys may contain spaces, hyphens, punctuation, or mixed case.',
+    ],
+    outputContract: [
+      'Return a new dictionary with normalized keys.',
+      'Do not mutate the input row.',
+      'Mapping takes precedence over generic snake_case conversion.',
+    ],
+    edgeCases: [
+      'Strip leading and trailing separators when converting to snake_case.',
+      'Do not lowercase or transform values.',
+      'If two fields normalize to the same output key, later fields may overwrite earlier ones for this exercise.',
+    ],
+    examples: [
+      {
+        label: 'External import row',
+        input: `row = {
+  "Department Name": "Sales",
+  "Forecast Amount": 10,
+  "External-ID": "A1"
+}
+mapping = {
+  "Department Name": "department",
+  "Forecast Amount": "forecast"
+}`,
+        expected: `{
+  "department": "Sales",
+  "forecast": 10,
+  "external_id": "A1"
+}`,
+      },
+    ],
     inputExample: `row={"Department Name": "Sales", "Forecast Amount": 10, "External-ID": "A1"}`,
     expectedOutput: `{"department": "Sales", "forecast": 10, "external_id": "A1"}`,
     hints: ['Create a small snake_case helper.', 'Mapping should override generic normalization.', 'Keep values unchanged.'],
@@ -908,6 +1752,93 @@ def normalize_fields(row, mapping):
     commonMistakes: ['Lowercasing values.', 'Ignoring mapping precedence.', 'Leaving trailing underscores.'],
     interviewerTips: ['Ask about conflicting normalized keys.', 'Mention schema versions.', 'Keep helper testable.'],
     companyRelevance: ['abacum', 'integrations', 'saas'],
+    evaluationMode: 'function',
+    functionName: 'normalize_fields',
+    starterCode: `import re
+
+def to_snake_case(value):
+    # Convert external keys like "External-ID" to "external_id".
+    pass
+
+def normalize_fields(row, mapping):
+    # mapping has priority over generic snake_case conversion.
+    # return a new dict and keep values unchanged.
+    pass
+`,
+    solution: `import re
+
+def to_snake_case(value):
+    value = re.sub(r"[^0-9a-zA-Z]+", "_", value).strip("_")
+    return value.lower()
+
+def normalize_fields(row, mapping):
+    normalized = {}
+    for key, value in row.items():
+        target_key = mapping.get(key, to_snake_case(key))
+        normalized[target_key] = value
+    return normalized
+`,
+    visibleTests: [
+      {
+        id: 'mapping-and-snake-case',
+        name: 'Uses mapping first and snake_case fallback',
+        input: [
+          { 'Department Name': 'Sales', 'Forecast Amount': 10, 'External-ID': 'A1' },
+          { 'Department Name': 'department', 'Forecast Amount': 'forecast' },
+        ],
+        expected: { department: 'Sales', forecast: 10, external_id: 'A1' },
+        explanation: 'Mapped keys use the configured names; External-ID falls back to snake_case.',
+      },
+      {
+        id: 'keeps-values-unchanged',
+        name: 'Keeps values unchanged',
+        input: [{ 'Owner Name': 'Ana Gomez', Amount: 0 }, {}],
+        expected: { owner_name: 'Ana Gomez', amount: 0 },
+      },
+    ],
+    hiddenTests: [
+      {
+        id: 'strips-punctuation',
+        name: 'Strips leading and trailing separators',
+        input: [{ '--External ID--': 'A1', 'Budget 2026': 100 }, {}],
+        expected: { external_id: 'A1', budget_2026: 100 },
+      },
+      {
+        id: 'mapping-precedence',
+        name: 'Mapping overrides generic normalization',
+        input: [{ 'Forecast Amount': 10 }, { 'Forecast Amount': 'forecast' }],
+        expected: { forecast: 10 },
+      },
+    ],
+    mistakePatterns: [
+      {
+        id: 'mapping-not-used',
+        label: 'Mapping precedence not obvious',
+        description: 'Configured mappings should override generic normalization.',
+        severity: 'warning',
+        detect: 'static-not-contains',
+        pattern: 'mapping',
+        feedback: 'Look up the external key in mapping before falling back to snake_case.',
+      },
+      {
+        id: 'value-lowercase-risk',
+        label: 'Possible value transformation',
+        description: 'Only keys should be normalized; values must stay unchanged.',
+        severity: 'warning',
+        detect: 'regex',
+        pattern: 'value\\.lower\\(|str\\(value\\)\\.lower',
+        feedback: 'Do not lowercase or otherwise normalize row values.',
+      },
+      {
+        id: 'no-return',
+        label: 'No return statement',
+        description: 'The function should return the normalized row dictionary.',
+        severity: 'error',
+        detect: 'static-not-contains',
+        pattern: 'return',
+        feedback: 'Return the normalized dictionary.',
+      },
+    ],
   },
   {
     id: 'top-departments-spend',
@@ -916,6 +1847,46 @@ def normalize_fields(row, mapping):
     tags: ['python', 'sorting', 'aggregation'],
     prompt:
       'Return the top N departments by total spend, sorted by spend descending and department ascending for ties.',
+    brief:
+      'Write a pure function that aggregates spend by department and returns the top N departments with deterministic tie-breaking.',
+    requirements: [
+      'Implement top_departments_by_spend(rows, n).',
+      'Aggregate total amount per department before sorting.',
+      'Sort by spend descending.',
+      'Break ties by department name ascending.',
+      'Return at most n entries.',
+    ],
+    inputContract: [
+      'rows is a list of dictionaries with department and amount.',
+      'n is the maximum number of departments to return.',
+      'Rows can be missing department or amount.',
+    ],
+    outputContract: [
+      'Return a list of (department, total) pairs.',
+      'The browser runner displays tuples as JSON arrays.',
+      'Skip rows missing department or amount.',
+    ],
+    edgeCases: [
+      'amount = 0 is valid.',
+      'n larger than the number of departments returns all departments.',
+      'n <= 0 should return an empty list.',
+    ],
+    examples: [
+      {
+        label: 'Top spenders',
+        input: `rows = [
+  {"department": "Sales", "amount": 10},
+  {"department": "Ops", "amount": 20},
+  {"department": "Sales", "amount": 15},
+  {"department": "Finance", "amount": 25}
+]
+n = 2`,
+        expected: `[
+  ("Finance", 25),
+  ("Sales", 25)
+]`,
+      },
+    ],
     inputExample: `[{"department":"Sales","amount":10},{"department":"Ops","amount":20}], n=1`,
     expectedOutput: `[("Ops", 20)]`,
     hints: ['Aggregate first, sort second.', 'Tie-breaking makes tests deterministic.', 'Think about n larger than number of departments.'],
@@ -941,6 +1912,101 @@ def top_departments_by_spend(rows, n):
     commonMistakes: ['Sorting rows before aggregating.', 'Unstable tie behavior.', 'Ignoring zero amounts.'],
     interviewerTips: ['Mention heap if d is huge and N is small.', 'Clarify output shape.', 'Use deterministic sorting.'],
     companyRelevance: ['abacum', 'finance', 'saas'],
+    evaluationMode: 'function',
+    functionName: 'top_departments_by_spend',
+    starterCode: `def top_departments_by_spend(rows, n):
+    # aggregate spend by department before sorting
+    # sort by total descending, then department ascending
+    # return at most n (department, total) pairs
+    pass
+`,
+    solution: `from collections import defaultdict
+
+def top_departments_by_spend(rows, n):
+    if n <= 0:
+        return []
+
+    totals = defaultdict(float)
+    for row in rows:
+        department = row.get("department")
+        amount = row.get("amount")
+        if department and amount is not None:
+            totals[department] += amount
+
+    return sorted(totals.items(), key=lambda item: (-item[1], item[0]))[:n]
+`,
+    visibleTests: [
+      {
+        id: 'top-two-with-tie',
+        name: 'Aggregates first and sorts with tie-break',
+        input: [
+          [
+            { department: 'Sales', amount: 10 },
+            { department: 'Ops', amount: 20 },
+            { department: 'Sales', amount: 15 },
+            { department: 'Finance', amount: 25 },
+          ],
+          2,
+        ],
+        expected: [
+          ['Finance', 25],
+          ['Sales', 25],
+        ],
+        explanation: 'Finance and Sales tie at 25, so department name breaks the tie.',
+      },
+      {
+        id: 'keeps-zero',
+        name: 'Zero amount is valid',
+        input: [[{ department: 'Ops', amount: 0 }], 3],
+        expected: [['Ops', 0]],
+      },
+    ],
+    hiddenTests: [
+      {
+        id: 'n-larger-than-departments',
+        name: 'n larger than department count returns all',
+        input: [[{ department: 'B', amount: 1 }, { department: 'A', amount: 1 }], 10],
+        expected: [
+          ['A', 1],
+          ['B', 1],
+        ],
+      },
+      {
+        id: 'non-positive-n',
+        name: 'Non-positive n returns empty list',
+        input: [[{ department: 'Sales', amount: 10 }], 0],
+        expected: [],
+      },
+    ],
+    mistakePatterns: [
+      {
+        id: 'sort-before-aggregate-risk',
+        label: 'May sort before aggregating',
+        description: 'Rows are not departments; departments can appear multiple times.',
+        severity: 'warning',
+        detect: 'static-not-contains',
+        pattern: 'totals|defaultdict|dict\\(',
+        feedback: 'Aggregate totals per department first, then sort departments.',
+      },
+      {
+        id: 'tie-break-missing',
+        label: 'Tie-break not obvious',
+        description: 'Deterministic sorting avoids flaky outputs.',
+        severity: 'info',
+        detect: 'static-not-contains',
+        pattern: 'lambda',
+        feedback: 'Sort by (-total, department) so ties are alphabetical.',
+      },
+      {
+        id: 'no-return',
+        label: 'No return statement',
+        description: 'The function should return the top departments list.',
+        severity: 'error',
+        detect: 'static-not-contains',
+        pattern: 'return',
+        feedback: 'Return the sorted top-N list.',
+      },
+    ],
   },
   {
     id: 'rate-limiter',

@@ -14,6 +14,7 @@ The Coding Dojo section adds an in-browser Python practice environment for selec
 - User solutions and run progress are saved in browser `localStorage`.
 - Local heuristic feedback flags common mistakes such as missing return values, hardcoded sample output or risky field access.
 - Focus editor mode gives the coding surface more room while keeping the task contract available.
+- Search and filters by company, difficulty, tag and progress keep the exercise list usable as it grows.
 
 Python execution happens in the browser. Do not paste secrets or run untrusted code in the dojo.
 
